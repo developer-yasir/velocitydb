@@ -1697,7 +1697,7 @@ mod linux {
                         batch_writer.flush_all().await?;
                         pubsub_hub.unsubscribe_all(client_id);
                         repl_hub.unregister_replica(client_id);
-                        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e));
+                        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()));
                     }
                 }
             }

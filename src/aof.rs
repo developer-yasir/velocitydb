@@ -711,7 +711,7 @@ mod linux {
                 // Asynchronous non-blocking write to NVMe/SSD via io_uring submission queue
                 file.write_at(dma_buf, file_offset)
                     .await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
                 file_offset += aligned_bytes as u64;
                 *aof.total_bytes_written.borrow_mut() += aligned_bytes as u64;
@@ -721,7 +721,7 @@ mod linux {
                 if aof.sync_mode() == AofSyncMode::Always {
                     file.fdatasync()
                         .await
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
                 }
             } else {
                 // Yield cooperatively to client connection tasks when queue is idle
