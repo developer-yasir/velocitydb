@@ -5,20 +5,18 @@ import {
   Database,
   Search,
   Filter,
-  Trash2,
-  Edit3,
-  Copy,
-  Clock,
-  HardDrive,
-  Hash,
-  List,
-  Layers,
-  Radio,
-  Binary,
-  Check,
   Plus,
+  Layers,
+  Sparkles,
+  HardDrive,
+  Clock,
+  RefreshCw,
+  SlidersHorizontal,
 } from "lucide-react";
 import { KeyRecord, KeyType } from "@/types";
+import { KeyTable } from "@/components/explorer/KeyTable";
+import { KeyDrawer } from "@/components/explorer/KeyDrawer";
+import { NewKeyModal } from "@/components/explorer/NewKeyModal";
 
 const INITIAL_KEYS: KeyRecord[] = [
   {
@@ -75,209 +73,244 @@ const INITIAL_KEYS: KeyRecord[] = [
     sizeBytes: 65536,
     lastAccessed: "Just now",
   },
+  {
+    key: "{tenant:102}rate_limit:ip_192.168.1.50",
+    type: "string",
+    slot: 5012,
+    targetNode: "node-01:6379",
+    ttlSeconds: 58,
+    sizeBytes: 64,
+    lastAccessed: "Just now",
+  },
+  {
+    key: "{catalog:inventory}sku_994812",
+    type: "hash",
+    slot: 9412,
+    targetNode: "node-02:6380",
+    ttlSeconds: null,
+    sizeBytes: 512,
+    lastAccessed: "12 mins ago",
+  },
+  {
+    key: "{pubsub:backlog}replica_sync_stream",
+    type: "stream",
+    slot: 10950,
+    targetNode: "node-03:6381",
+    ttlSeconds: 1200,
+    sizeBytes: 16384,
+    lastAccessed: "10 secs ago",
+  },
 ];
 
 export default function ExplorerPage() {
-  const [keys] = useState<KeyRecord[]>(INITIAL_KEYS);
+  const [keys, setKeys] = useState<KeyRecord[]>(INITIAL_KEYS);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<KeyType | "all">("all");
-  const [selectedKey, setSelectedKey] = useState<KeyRecord>(INITIAL_KEYS[0]);
-  const [copied, setCopied] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<string>("all");
+  const [activeDrawerKey, setActiveDrawerKey] = useState<KeyRecord | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Filter keys based on search and dropdown filters
   const filteredKeys = keys.filter((k) => {
-    const matchesSearch = k.key.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      k.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(k.slot).includes(searchQuery);
+
     const matchesType = selectedType === "all" || k.type === selectedType;
-    return matchesSearch && matchesType;
+    const matchesNode = selectedNode === "all" || k.targetNode.includes(selectedNode);
+
+    return matchesSearch && matchesType && matchesNode;
   });
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(selectedKey.key);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCreateKey = (newKey: {
+    key: string;
+    type: KeyType;
+    ttlSeconds: number | null;
+    value: string;
+  }) => {
+    // Compute simple deterministic slot (0 to 16383)
+    const slot = Math.abs(
+      newKey.key.split("").reduce((acc, c) => (acc << 5) - acc + c.charCodeAt(0), 0)
+    ) % 16384;
+
+    const targetNode =
+      slot < 5462
+        ? "node-01:6379"
+        : slot < 10923
+        ? "node-02:6380"
+        : "node-03:6381";
+
+    const createdRecord: KeyRecord = {
+      key: newKey.key,
+      type: newKey.type,
+      slot,
+      targetNode,
+      ttlSeconds: newKey.ttlSeconds,
+      sizeBytes: new TextEncoder().encode(newKey.value).length,
+      lastAccessed: "Just now",
+    };
+
+    setKeys((prev) => [createdRecord, ...prev]);
+    setActiveDrawerKey(createdRecord);
+    setIsDrawerOpen(true);
+  };
+
+  const handleUpdateValue = (keyName: string, newValue: string, newTtl: number | null) => {
+    setKeys((prev) =>
+      prev.map((k) => {
+        if (k.key === keyName) {
+          return {
+            ...k,
+            ttlSeconds: newTtl,
+            sizeBytes: new TextEncoder().encode(newValue).length,
+            lastAccessed: "Just now",
+          };
+        }
+        return k;
+      })
+    );
+  };
+
+  const handleDeleteKey = (keyName: string) => {
+    setKeys((prev) => prev.filter((k) => k.key !== keyName));
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Page Header */}
+      {/* Top Banner & Quick Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-black tracking-tight text-white font-mono flex items-center gap-2">
               DATA EXPLORER
             </h1>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
-              16,384 HASH SLOTS
+            <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 shadow-[0_0_10px_rgba(0,242,254,0.3)]">
+              EXCEL-GRADE TABLE
             </span>
           </div>
           <p className="text-xs text-zinc-400 font-mono mt-1">
-            Zero-copy direct inspection across Strings, Hashes, Lists, Sorted Sets, Streams, and SIMD Bitmaps.
+            Zero-copy table explorer with real-time JSON drawer, type filters, and cluster slot inspection.
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-500 text-black font-mono font-bold text-xs hover:bg-cyan-400 transition-colors shadow-[0_0_15px_-3px_rgba(0,242,254,0.4)]">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-400 text-black font-black font-mono text-xs hover:bg-cyan-300 transition-all shadow-[0_0_20px_-3px_rgba(0,242,254,0.4)] active:scale-95"
+        >
           <Plus className="w-4 h-4" />
-          <span>NEW KEY</span>
+          <span>ADD NEW KEY</span>
         </button>
       </div>
 
-      {/* Main Explorer Two-Pane Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-220px)]">
-        {/* Left Pane: Key List & Filters (5 cols) */}
-        <div className="lg:col-span-5 glass-panel rounded-2xl p-4 flex flex-col space-y-4 overflow-hidden">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search keys by pattern (e.g. {user:*)..."
-              className="w-full pl-9 pr-4 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-xs font-mono text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500/50"
-            />
-          </div>
-
-          {/* Type Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-mono scrollbar-none">
-            {(["all", "string", "hash", "list", "zset", "stream", "bitmap"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setSelectedType(t)}
-                className={`px-2.5 py-1 rounded-lg uppercase font-semibold transition-colors shrink-0 ${
-                  selectedType === t
-                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                    : "text-zinc-400 hover:text-white bg-white/[0.03] border border-transparent"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {/* Key List Table */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-            {filteredKeys.map((k) => {
-              const isSelected = selectedKey.key === k.key;
-              return (
-                <button
-                  key={k.key}
-                  onClick={() => setSelectedKey(k)}
-                  className={`w-full text-left p-3 rounded-xl border font-mono transition-all ${
-                    isSelected
-                      ? "bg-cyan-500/10 border-cyan-500/40 shadow-[0_0_15px_-4px_rgba(0,242,254,0.15)]"
-                      : "bg-[#0d121c]/60 border-white/[0.05] hover:bg-white/[0.03]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase bg-black/50 text-cyan-400 border border-white/10">
-                      {k.type}
-                    </span>
-                    <span className="text-[10px] text-purple-400 font-bold">
-                      Slot {k.slot}
-                    </span>
-                  </div>
-
-                  <div className="text-xs font-semibold text-white mt-1.5 truncate">
-                    {k.key}
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400 mt-2">
-                    <span>{k.targetNode}</span>
-                    <span>{k.sizeBytes} Bytes</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+      {/* Quick Stats Ribbon */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-xs">
+        <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
+          <span className="text-[10px] text-zinc-400 uppercase block">Keys in Memory</span>
+          <span className="text-lg font-black text-white">{keys.length.toLocaleString()}</span>
+          <span className="text-[10px] text-cyan-400 ml-1">Cached in RAM</span>
         </div>
 
-        {/* Right Pane: Key Value & Metadata Inspector (7 cols) */}
-        <div className="lg:col-span-7 glass-panel rounded-2xl p-6 flex flex-col justify-between overflow-y-auto space-y-6">
-          <div className="space-y-6">
-            {/* Key Title Header */}
-            <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/[0.08]">
-              <div className="space-y-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold">
-                  {selectedKey.type.toUpperCase()} KEY RECORD
-                </span>
-                <h2 className="text-lg font-bold font-mono text-white break-all flex items-center gap-2">
-                  <span>{selectedKey.key}</span>
-                  <button
-                    onClick={handleCopy}
-                    className="p-1 rounded text-zinc-400 hover:text-cyan-400 transition-colors"
-                    title="Copy Key"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </h2>
-              </div>
+        <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
+          <span className="text-[10px] text-zinc-400 uppercase block">Expiring Keys</span>
+          <span className="text-lg font-black text-amber-400">
+            {keys.filter((k) => k.ttlSeconds !== null).length}
+          </span>
+          <span className="text-[10px] text-zinc-400 ml-1">with TTL</span>
+        </div>
 
-              <div className="flex items-center gap-2">
-                <button className="p-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-zinc-300 hover:text-white hover:border-white/20 transition-colors">
-                  <Edit3 className="w-4 h-4" />
-                </button>
-                <button className="p-2 rounded-xl bg-red-950/30 border border-red-800/40 text-red-400 hover:bg-red-950/60 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+        <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
+          <span className="text-[10px] text-zinc-400 uppercase block">Memory Consumed</span>
+          <span className="text-lg font-black text-emerald-400">
+            {(keys.reduce((acc, k) => acc + k.sizeBytes, 0) / 1024).toFixed(1)} KB
+          </span>
+          <span className="text-[10px] text-zinc-400 ml-1">Payload raw</span>
+        </div>
 
-            {/* Key Properties Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
-              <div className="p-3 rounded-xl bg-[#0d121c] border border-white/[0.06]">
-                <span className="text-[10px] text-zinc-400 uppercase block">Slot Number</span>
-                <span className="text-purple-400 font-bold text-sm">{selectedKey.slot}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#0d121c] border border-white/[0.06]">
-                <span className="text-[10px] text-zinc-400 uppercase block">Hosting Node</span>
-                <span className="text-cyan-400 font-bold text-sm">{selectedKey.targetNode}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#0d121c] border border-white/[0.06]">
-                <span className="text-[10px] text-zinc-400 uppercase block">Time-To-Live</span>
-                <span className="text-amber-400 font-bold text-sm">
-                  {selectedKey.ttlSeconds ? `${selectedKey.ttlSeconds}s` : "Persistent"}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#0d121c] border border-white/[0.06]">
-                <span className="text-[10px] text-zinc-400 uppercase block">Memory Size</span>
-                <span className="text-emerald-400 font-bold text-sm">{selectedKey.sizeBytes} Bytes</span>
-              </div>
-            </div>
+        <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
+          <span className="text-[10px] text-zinc-400 uppercase block">Cluster Distribution</span>
+          <span className="text-lg font-black text-purple-400">3 Nodes</span>
+          <span className="text-[10px] text-zinc-400 ml-1">16,384 Slots</span>
+        </div>
+      </div>
 
-            {/* Raw Value Payload Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-zinc-400 uppercase">Value Payload (JSON / Binary Safe)</span>
-                <span className="text-zinc-500">Encoding: raw-utf8</span>
-              </div>
+      {/* Search & Filter Toolbar */}
+      <div className="p-4 rounded-2xl glass-panel border border-white/[0.08] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 font-mono text-xs">
+        {/* Search input with focus glow */}
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by key pattern (e.g. {tenant:101}*, session:*, slot number)..."
+            className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/[0.08] rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all text-xs"
+          />
+        </div>
 
-              <div className="p-4 rounded-xl bg-black/60 border border-white/[0.08] font-mono text-xs text-zinc-300 overflow-x-auto leading-relaxed">
-                <pre>
-{`{
-  "tenant_id": 101,
-  "user_id": 9941,
-  "role": "enterprise_admin",
-  "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "permissions": [
-    "cluster:read",
-    "cluster:write",
-    "acl:admin",
-    "replication:sync"
-  ],
-  "session_created": 1731057400,
-  "ip_address": "192.168.1.100"
-}`}
-                </pre>
-              </div>
-            </div>
+        {/* Dropdown Filters */}
+        <div className="flex items-center gap-3">
+          {/* Type filter */}
+          <div className="flex items-center gap-1.5 bg-black/40 border border-white/[0.08] rounded-xl px-2.5 py-1.5">
+            <span className="text-zinc-500 text-[11px] uppercase">Type:</span>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value as any)}
+              className="bg-transparent text-white focus:outline-none cursor-pointer text-xs"
+            >
+              <option value="all" className="bg-[#0d121c]">ALL TYPES</option>
+              <option value="string" className="bg-[#0d121c]">STRING</option>
+              <option value="hash" className="bg-[#0d121c]">HASH</option>
+              <option value="list" className="bg-[#0d121c]">LIST</option>
+              <option value="zset" className="bg-[#0d121c]">ZSET</option>
+              <option value="stream" className="bg-[#0d121c]">STREAM</option>
+              <option value="bitmap" className="bg-[#0d121c]">BITMAP</option>
+            </select>
           </div>
 
-          {/* Quick Command Helper at Bottom */}
-          <div className="p-3 rounded-xl bg-[#0d121c] border border-white/[0.06] text-xs font-mono flex items-center justify-between">
-            <span className="text-zinc-400">Terminal Command:</span>
-            <code className="text-cyan-400 font-bold">GET {selectedKey.key}</code>
+          {/* Node filter */}
+          <div className="flex items-center gap-1.5 bg-black/40 border border-white/[0.08] rounded-xl px-2.5 py-1.5">
+            <span className="text-zinc-500 text-[11px] uppercase">Node:</span>
+            <select
+              value={selectedNode}
+              onChange={(e) => setSelectedNode(e.target.value)}
+              className="bg-transparent text-white focus:outline-none cursor-pointer text-xs"
+            >
+              <option value="all" className="bg-[#0d121c]">ALL NODES</option>
+              <option value="6379" className="bg-[#0d121c]">NODE 1 (:6379)</option>
+              <option value="6380" className="bg-[#0d121c]">NODE 2 (:6380)</option>
+              <option value="6381" className="bg-[#0d121c]">NODE 3 (:6381)</option>
+            </select>
           </div>
         </div>
       </div>
+
+      {/* Advanced Excel-like Key Table */}
+      <KeyTable
+        keys={filteredKeys}
+        onSelectKey={(k) => {
+          setActiveDrawerKey(k);
+          setIsDrawerOpen(true);
+        }}
+        onDeleteKey={handleDeleteKey}
+        selectedKeyName={activeDrawerKey?.key}
+      />
+
+      {/* Slide-over Drawer for JSON & Value Editing */}
+      <KeyDrawer
+        keyRecord={activeDrawerKey}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onUpdateValue={handleUpdateValue}
+        onDeleteKey={handleDeleteKey}
+      />
+
+      {/* Add New Key Modal */}
+      <NewKeyModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreateKey={handleCreateKey}
+      />
     </div>
   );
 }
