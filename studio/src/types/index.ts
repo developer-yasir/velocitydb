@@ -57,6 +57,24 @@ export interface KeyRecord {
   ttlSeconds: number | null; // null = persistent
   sizeBytes: number;
   lastAccessed: string;
+  value?: string;
+}
+
+export interface IVelocityKey {
+  key: string;
+  key_type: string;
+  slot: number;
+  target_node: string;
+  ttl_seconds: number | null;
+  size_bytes: number;
+  value: string;
+  last_accessed: string;
+}
+
+export interface IApiError {
+  status: number;
+  message: string;
+  details?: string;
 }
 
 export interface CoreTelemetryPayload {

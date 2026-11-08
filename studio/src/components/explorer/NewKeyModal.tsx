@@ -20,7 +20,7 @@ interface NewKeyModalProps {
     type: KeyType;
     ttlSeconds: number | null;
     value: string;
-  }) => void;
+  }) => void | Promise<void>;
 }
 
 export function NewKeyModal({ isOpen, onClose, onCreateKey }: NewKeyModalProps) {

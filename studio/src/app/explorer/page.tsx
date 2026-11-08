@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Database,
   Search,
@@ -12,98 +12,34 @@ import {
   Clock,
   RefreshCw,
   SlidersHorizontal,
+  AlertCircle,
+  Inbox,
 } from "lucide-react";
-import { KeyRecord, KeyType } from "@/types";
+import { KeyRecord, KeyType, IVelocityKey, IApiError } from "@/types";
 import { KeyTable } from "@/components/explorer/KeyTable";
 import { KeyDrawer } from "@/components/explorer/KeyDrawer";
 import { NewKeyModal } from "@/components/explorer/NewKeyModal";
+import { useToast } from "@/components/ui/Toast";
 
-const INITIAL_KEYS: KeyRecord[] = [
-  {
-    key: "{tenant:101}session:user_token:9941",
-    type: "string",
-    slot: 4921,
-    targetNode: "node-01:6379",
-    ttlSeconds: 3412,
-    sizeBytes: 256,
-    lastAccessed: "2 secs ago",
-  },
-  {
-    key: "{user:8912}profile_metadata",
-    type: "hash",
-    slot: 8195,
-    targetNode: "node-02:6380",
-    ttlSeconds: null,
-    sizeBytes: 1048,
-    lastAccessed: "14 secs ago",
-  },
-  {
-    key: "{orders:queue}pending_checkouts",
-    type: "list",
-    slot: 2100,
-    targetNode: "node-01:6379",
-    ttlSeconds: 86400,
-    sizeBytes: 4096,
-    lastAccessed: "1 min ago",
-  },
-  {
-    key: "{game:leaderboard}season_14_scores",
-    type: "zset",
-    slot: 14201,
-    targetNode: "node-03:6381",
-    ttlSeconds: null,
-    sizeBytes: 8192,
-    lastAccessed: "5 mins ago",
-  },
-  {
-    key: "{stream:events}telemetry_ingest_v1",
-    type: "stream",
-    slot: 1284,
-    targetNode: "node-01:6379",
-    ttlSeconds: null,
-    sizeBytes: 32768,
-    lastAccessed: "Just now",
-  },
-  {
-    key: "{analytics:daily}active_users_bitmap",
-    type: "bitmap",
-    slot: 3410,
-    targetNode: "node-01:6379",
-    ttlSeconds: 43200,
-    sizeBytes: 65536,
-    lastAccessed: "Just now",
-  },
-  {
-    key: "{tenant:102}rate_limit:ip_192.168.1.50",
-    type: "string",
-    slot: 5012,
-    targetNode: "node-01:6379",
-    ttlSeconds: 58,
-    sizeBytes: 64,
-    lastAccessed: "Just now",
-  },
-  {
-    key: "{catalog:inventory}sku_994812",
-    type: "hash",
-    slot: 9412,
-    targetNode: "node-02:6380",
-    ttlSeconds: null,
-    sizeBytes: 512,
-    lastAccessed: "12 mins ago",
-  },
-  {
-    key: "{pubsub:backlog}replica_sync_stream",
-    type: "stream",
-    slot: 10950,
-    targetNode: "node-03:6381",
-    ttlSeconds: 1200,
-    sizeBytes: 16384,
-    lastAccessed: "10 secs ago",
-  },
-];
+const API_BASE_URL = "http://localhost:8080/api/keys";
+
+function mapVelocityKeyToRecord(dto: IVelocityKey): KeyRecord {
+  return {
+    key: dto.key,
+    type: (dto.key_type.toLowerCase() || "string") as KeyType,
+    slot: dto.slot,
+    targetNode: dto.target_node,
+    ttlSeconds: dto.ttl_seconds,
+    sizeBytes: dto.size_bytes,
+    value: dto.value,
+    lastAccessed: dto.last_accessed || "Just now",
+  };
+}
 
 export default function ExplorerPage() {
-  const [keys, setKeys] = useState<KeyRecord[]>(INITIAL_KEYS);
+  const [keys, setKeys] = useState<KeyRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<KeyType | "all">("all");
   const [selectedNode, setSelectedNode] = useState<string>("all");
@@ -111,98 +47,134 @@ export default function ExplorerPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Sync with embedded VelocityDB REST management API (port 8080)
-  useEffect(() => {
-    fetch("http://localhost:8080/api/keys")
-      .then((res) => {
-        if (!res.ok) throw new Error("API status not ok");
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const remoteKeys: KeyRecord[] = data.map((d: {
-            key: string;
-            key_type: string;
-            slot: number;
-            target_node: string;
-            ttl_seconds: number | null;
-            size_bytes: number;
-            last_accessed: string;
-          }) => ({
-            key: d.key,
-            type: (d.key_type.toLowerCase() || "string") as KeyType,
-            slot: d.slot,
-            targetNode: d.target_node,
-            ttlSeconds: d.ttl_seconds,
-            sizeBytes: d.size_bytes,
-            lastAccessed: d.last_accessed || "Just now",
-          }));
-          setKeys(remoteKeys);
+  const { showError, showSuccess } = useToast();
+
+  // Pull live keys from the Rust Axum REST API (GET /api/keys)
+  const fetchKeys = useCallback(
+    async (showFeedback = false) => {
+      if (showFeedback) setIsRefreshing(true);
+      try {
+        const res = await fetch(API_BASE_URL, {
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) {
+          const err: IApiError = {
+            status: res.status,
+            message: `Engine responded with status ${res.statusText}`,
+          };
+          showError(err, "Failed to Load Keys");
+          return;
         }
-      })
-      .catch(() => {
-        // Quiet fallback to INITIAL_KEYS when engine offline
-      });
-  }, []);
+
+        const data: IVelocityKey[] = await res.json();
+        const mapped = data.map(mapVelocityKeyToRecord);
+        setKeys(mapped);
+
+        if (showFeedback) {
+          showSuccess(
+            "Keys Synchronized",
+            `Loaded ${mapped.length} records from VelocityDB engine.`
+          );
+        }
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Cannot establish connection to VelocityDB REST plane (port 8080)";
+        showError(
+          {
+            status: 503,
+            message: msg,
+          },
+          "Backend Unreachable"
+        );
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [showError, showSuccess]
+  );
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchKeys(false);
+  }, [fetchKeys]);
 
   // Filter keys based on search and dropdown filters
-  const filteredKeys = keys.filter((k) => {
-    const matchesSearch =
-      k.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(k.slot).includes(searchQuery);
+  const filteredKeys = useMemo(() => {
+    return keys.filter((k) => {
+      const matchesSearch =
+        k.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(k.slot).includes(searchQuery);
 
-    const matchesType = selectedType === "all" || k.type === selectedType;
-    const matchesNode = selectedNode === "all" || k.targetNode.includes(selectedNode);
+      const matchesType = selectedType === "all" || k.type === selectedType;
+      const matchesNode =
+        selectedNode === "all" || k.targetNode.includes(selectedNode);
 
-    return matchesSearch && matchesType && matchesNode;
-  });
+      return matchesSearch && matchesType && matchesNode;
+    });
+  }, [keys, searchQuery, selectedType, selectedNode]);
 
-  const handleCreateKey = (newKey: {
+  // CREATE: POST /api/keys
+  const handleCreateKey = async (newKey: {
     key: string;
     type: KeyType;
     ttlSeconds: number | null;
     value: string;
   }) => {
-    // Compute simple deterministic slot (0 to 16383)
-    const slot = Math.abs(
-      newKey.key.split("").reduce((acc, c) => (acc << 5) - acc + c.charCodeAt(0), 0)
-    ) % 16384;
+    try {
+      const res = await fetch(API_BASE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: newKey.key,
+          key_type: newKey.type,
+          ttl_seconds: newKey.ttlSeconds,
+          value: newKey.value,
+        }),
+      });
 
-    const targetNode =
-      slot < 5462
-        ? "node-01:6379"
-        : slot < 10923
-        ? "node-02:6380"
-        : "node-03:6381";
+      if (!res.ok) {
+        const err: IApiError = {
+          status: res.status,
+          message: `Engine failed to allocate slot for "${newKey.key}". Status: ${res.statusText}`,
+        };
+        showError(err, "Key Creation Rejected");
+        return;
+      }
 
-    const createdRecord: KeyRecord = {
-      key: newKey.key,
-      type: newKey.type,
-      slot,
-      targetNode,
-      ttlSeconds: newKey.ttlSeconds,
-      sizeBytes: new TextEncoder().encode(newKey.value).length,
-      lastAccessed: "Just now",
-    };
+      const created: IVelocityKey = await res.json();
+      const createdRecord = mapVelocityKeyToRecord(created);
 
-    setKeys((prev) => [createdRecord, ...prev]);
-    setActiveDrawerKey(createdRecord);
-    setIsDrawerOpen(true);
+      // Prepend to keys table
+      setKeys((prev) => [
+        createdRecord,
+        ...prev.filter((k) => k.key !== createdRecord.key),
+      ]);
+      setActiveDrawerKey(createdRecord);
+      setIsDrawerOpen(true);
 
-    // Call REST endpoint
-    fetch("http://localhost:8080/api/keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        key: newKey.key,
-        key_type: newKey.type,
-        ttl_seconds: newKey.ttlSeconds,
-        value: newKey.value,
-      }),
-    }).catch(() => {});
+      showSuccess(
+        "Key Created",
+        `Assigned to Slot ${created.slot} on ${created.target_node} (${created.size_bytes} bytes).`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error contacting port 8080";
+      showError({ status: 503, message: msg }, "Backend Unreachable");
+    }
   };
 
-  const handleUpdateValue = (keyName: string, newValue: string, newTtl: number | null) => {
+  // EDIT/SAVE: PUT /api/keys/:key
+  const handleUpdateValue = async (
+    keyName: string,
+    newValue: string,
+    newTtl: number | null
+  ): Promise<boolean> => {
+    const previousKeys = [...keys];
+
+    // Optimistically update table row
     setKeys((prev) =>
       prev.map((k) => {
         if (k.key === keyName) {
@@ -211,31 +183,120 @@ export default function ExplorerPage() {
             ttlSeconds: newTtl,
             sizeBytes: new TextEncoder().encode(newValue).length,
             lastAccessed: "Just now",
+            value: newValue,
           };
         }
         return k;
       })
     );
 
-    // Call REST endpoint
-    fetch(`http://localhost:8080/api/keys/${encodeURIComponent(keyName)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        value: newValue,
-        ttl_seconds: newTtl,
-      }),
-    }).catch(() => {});
+    try {
+      const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(keyName)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          value: newValue,
+          ttl_seconds: newTtl,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          const err: IApiError = {
+            status: 404,
+            message: `Key "${keyName}" not found on node. It may have expired or been evicted.`,
+          };
+          showError(err, "Key Not Found");
+        } else {
+          const err: IApiError = {
+            status: res.status,
+            message: `Failed to commit updates for "${keyName}". Status: ${res.statusText}`,
+          };
+          showError(err, "Update Rejected");
+        }
+        // Rollback optimistic changes
+        setKeys(previousKeys);
+        return false;
+      }
+
+      const updated: IVelocityKey = await res.json();
+      const updatedRecord = mapVelocityKeyToRecord(updated);
+
+      // Harmonize with server response
+      setKeys((prev) =>
+        prev.map((k) => (k.key === updated.key ? updatedRecord : k))
+      );
+      if (activeDrawerKey?.key === updated.key) {
+        setActiveDrawerKey(updatedRecord);
+      }
+
+      showSuccess(
+        "Key Updated",
+        `Committed ${updated.size_bytes} bytes to memory on ${updated.target_node}.`
+      );
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error contacting port 8080";
+      showError({ status: 503, message: msg }, "Backend Unreachable");
+      setKeys(previousKeys);
+      return false;
+    }
   };
 
-  const handleDeleteKey = (keyName: string) => {
+  // DELETE: DELETE /api/keys/:key (Optimistic)
+  const handleDeleteKey = async (keyName: string): Promise<boolean> => {
+    const previousKeys = [...keys];
+
+    // Optimistically remove from state immediately
     setKeys((prev) => prev.filter((k) => k.key !== keyName));
+    if (activeDrawerKey?.key === keyName) {
+      setIsDrawerOpen(false);
+      setActiveDrawerKey(null);
+    }
 
-    // Call REST endpoint
-    fetch(`http://localhost:8080/api/keys/${encodeURIComponent(keyName)}`, {
-      method: "DELETE",
-    }).catch(() => {});
+    try {
+      const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(keyName)}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          const err: IApiError = {
+            status: 404,
+            message: `Key "${keyName}" not found on node. It may have already expired or been evicted.`,
+          };
+          showError(err, "Eviction Warning");
+        } else {
+          const err: IApiError = {
+            status: res.status,
+            message: `Failed to evict "${keyName}". Status: ${res.statusText}`,
+          };
+          showError(err, "Eviction Failed");
+        }
+        // Rollback optimistic deletion
+        setKeys(previousKeys);
+        return false;
+      }
+
+      showSuccess("Key Evicted", `Key "${keyName}" removed from database RAM.`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error contacting port 8080";
+      showError({ status: 503, message: msg }, "Backend Unreachable");
+      setKeys(previousKeys);
+      return false;
+    }
   };
+
+  // Stats calculation
+  const totalMemoryBytes = useMemo(
+    () => keys.reduce((acc, k) => acc + k.sizeBytes, 0),
+    [keys]
+  );
+  const expiringCount = useMemo(
+    () => keys.filter((k) => k.ttlSeconds !== null).length,
+    [keys]
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -247,49 +308,65 @@ export default function ExplorerPage() {
               DATA EXPLORER
             </h1>
             <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 shadow-[0_0_10px_rgba(0,242,254,0.3)]">
-              EXCEL-GRADE TABLE
+              LIVE REST PLANE
             </span>
           </div>
           <p className="text-xs text-zinc-400 font-mono mt-1">
-            Zero-copy table explorer with real-time JSON drawer, type filters, and cluster slot inspection.
+            Real-time key inspector communicating directly with VelocityDB management endpoints on port 8080.
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-400 text-black font-black font-mono text-xs hover:bg-cyan-300 transition-all shadow-[0_0_20px_-3px_rgba(0,242,254,0.4)] active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          <span>ADD NEW KEY</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {/* Refresh from Backend button */}
+          <button
+            onClick={() => fetchKeys(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs font-mono font-bold text-zinc-300 hover:text-white hover:bg-white/[0.1] hover:border-cyan-500/40 transition-all active:scale-95 disabled:opacity-50"
+            title="Reload keys from Rust engine"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-cyan-400" : ""}`} />
+            <span>{isRefreshing ? "SYNCING..." : "SYNC"}</span>
+          </button>
+
+          {/* Add Key Button */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-400 text-black font-black font-mono text-xs hover:bg-cyan-300 transition-all shadow-[0_0_20px_-3px_rgba(0,242,254,0.4)] active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>ADD NEW KEY</span>
+          </button>
+        </div>
       </div>
 
       {/* Quick Stats Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-xs">
         <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
           <span className="text-[10px] text-zinc-400 uppercase block">Keys in Memory</span>
-          <span className="text-lg font-black text-white">{keys.length.toLocaleString()}</span>
-          <span className="text-[10px] text-cyan-400 ml-1">Cached in RAM</span>
+          <span className="text-lg font-black text-white">
+            {isLoading ? "--" : keys.length.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-cyan-400 ml-1">Live Engine State</span>
         </div>
 
         <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
           <span className="text-[10px] text-zinc-400 uppercase block">Expiring Keys</span>
           <span className="text-lg font-black text-amber-400">
-            {keys.filter((k) => k.ttlSeconds !== null).length}
+            {isLoading ? "--" : expiringCount}
           </span>
-          <span className="text-[10px] text-zinc-400 ml-1">with TTL</span>
+          <span className="text-[10px] text-zinc-400 ml-1">Active TTL</span>
         </div>
 
         <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
           <span className="text-[10px] text-zinc-400 uppercase block">Memory Consumed</span>
           <span className="text-lg font-black text-emerald-400">
-            {(keys.reduce((acc, k) => acc + k.sizeBytes, 0) / 1024).toFixed(1)} KB
+            {isLoading ? "--" : (totalMemoryBytes / 1024).toFixed(1)} KB
           </span>
-          <span className="text-[10px] text-zinc-400 ml-1">Payload raw</span>
+          <span className="text-[10px] text-zinc-400 ml-1">Payload Size</span>
         </div>
 
         <div className="p-3.5 rounded-xl glass-panel border border-white/[0.06]">
-          <span className="text-[10px] text-zinc-400 uppercase block">Cluster Distribution</span>
+          <span className="text-[10px] text-zinc-400 uppercase block">Cluster Topology</span>
           <span className="text-lg font-black text-purple-400">3 Nodes</span>
           <span className="text-[10px] text-zinc-400 ml-1">16,384 Slots</span>
         </div>
@@ -346,16 +423,43 @@ export default function ExplorerPage() {
         </div>
       </div>
 
-      {/* Advanced Excel-like Key Table */}
-      <KeyTable
-        keys={filteredKeys}
-        onSelectKey={(k) => {
-          setActiveDrawerKey(k);
-          setIsDrawerOpen(true);
-        }}
-        onDeleteKey={handleDeleteKey}
-        selectedKeyName={activeDrawerKey?.key}
-      />
+      {/* Loading Skeleton / Empty State / Key Table */}
+      {isLoading ? (
+        <div className="glass-panel p-16 rounded-2xl flex flex-col items-center justify-center space-y-3 font-mono text-xs">
+          <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+          <span className="text-zinc-300 font-bold">Querying VelocityDB Key Space...</span>
+          <span className="text-zinc-500 text-[11px]">Connecting to http://localhost:8080/api/keys</span>
+        </div>
+      ) : keys.length === 0 ? (
+        <div className="glass-panel p-16 rounded-2xl flex flex-col items-center justify-center space-y-4 font-mono text-center">
+          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <Inbox className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">No Keys in Database</h3>
+            <p className="text-xs text-zinc-400 mt-1 max-w-sm">
+              The database key space is currently empty. Use the in-browser terminal or click &quot;ADD NEW KEY&quot; to write your first key.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-400 text-black font-bold text-xs hover:bg-cyan-300 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create First Key</span>
+          </button>
+        </div>
+      ) : (
+        <KeyTable
+          keys={filteredKeys}
+          onSelectKey={(k) => {
+            setActiveDrawerKey(k);
+            setIsDrawerOpen(true);
+          }}
+          onDeleteKey={handleDeleteKey}
+          selectedKeyName={activeDrawerKey?.key}
+        />
+      )}
 
       {/* Slide-over Drawer for JSON & Value Editing */}
       <KeyDrawer

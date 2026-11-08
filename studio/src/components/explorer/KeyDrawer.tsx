@@ -15,15 +15,16 @@ import {
   FileCode,
   Sparkles,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
-import { KeyRecord } from "@/types";
+import { KeyRecord, IVelocityKey } from "@/types";
 
 interface KeyDrawerProps {
   keyRecord: KeyRecord | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdateValue: (key: string, newValue: string, newTtl: number | null) => void;
-  onDeleteKey: (key: string) => void;
+  onUpdateValue: (key: string, newValue: string, newTtl: number | null) => Promise<boolean> | void;
+  onDeleteKey: (key: string) => Promise<boolean> | void;
 }
 
 export function KeyDrawer({
@@ -34,87 +35,61 @@ export function KeyDrawer({
   onDeleteKey,
 }: KeyDrawerProps) {
   const [value, setValue] = useState("");
-  const [ttlInput, setTtlInput] = useState<string>("");
+  const [ttlInput, setTtlInput] = useState<string>("-1");
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedVal, setCopiedVal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isLoadingValue, setIsLoadingValue] = useState(false);
   const [activeTab, setActiveTab] = useState<"editor" | "metadata">("editor");
 
-  // Load sample or real formatted value when keyRecord changes
+  // Load live fresh value from the Rust Axum REST API (GET /api/keys/:key)
   useEffect(() => {
-    if (keyRecord) {
-      setTtlInput(keyRecord.ttlSeconds ? String(keyRecord.ttlSeconds) : "-1");
+    if (!keyRecord) return;
 
-      // Generate realistic payload based on key type
-      if (keyRecord.type === "string") {
-        setValue(
-          JSON.stringify(
-            {
-              tenant_id: 101,
-              session_token: "vdb_live_" + Math.random().toString(36).substring(2, 10),
-              role: "enterprise_admin",
-              permissions: ["cluster:read", "cluster:write", "acl:admin"],
-              active_ip: "192.168.1.100",
-              expires_epoch: Date.now() + 3600000,
-            },
-            null,
-            2
-          )
-        );
-      } else if (keyRecord.type === "hash") {
-        setValue(
-          JSON.stringify(
-            {
-              display_name: "Yasir Saleem",
-              email: "engyasirsaleem@gmail.com",
-              cluster_node: keyRecord.targetNode,
-              tier: "AGPL_v3_Enterprise",
-              max_concurrent_connections: 10000,
-            },
-            null,
-            2
-          )
-        );
-      } else if (keyRecord.type === "list") {
-        setValue(
-          JSON.stringify(
-            [
-              "job_queue:event_checkout_991",
-              "job_queue:event_checkout_992",
-              "job_queue:event_checkout_993",
-              "job_queue:event_checkout_994",
-            ],
-            null,
-            2
-          )
-        );
-      } else if (keyRecord.type === "zset") {
-        setValue(
-          JSON.stringify(
-            [
-              { member: "node-01", score: 24570000 },
-              { member: "node-02", score: 18450000 },
-              { member: "node-03", score: 16200000 },
-            ],
-            null,
-            2
-          )
-        );
-      } else {
-        setValue(
-          JSON.stringify(
-            {
-              stream_id: "1731057400000-0",
-              payload: "io_uring direct memory telemetry commit",
-              crc16_slot: keyRecord.slot,
-            },
-            null,
-            2
-          )
-        );
-      }
+    setTtlInput(keyRecord.ttlSeconds !== null ? String(keyRecord.ttlSeconds) : "-1");
+
+    // Initialize with cached value if present
+    if (keyRecord.value !== undefined) {
+      tryFormatInitial(keyRecord.value);
+    } else {
+      setValue("");
     }
+
+    let isCancelled = false;
+    setIsLoadingValue(true);
+
+    fetch(`http://localhost:8080/api/keys/${encodeURIComponent(keyRecord.key)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: IVelocityKey) => {
+        if (!isCancelled) {
+          tryFormatInitial(data.value);
+          setTtlInput(data.ttl_seconds !== null ? String(data.ttl_seconds) : "-1");
+          setIsLoadingValue(false);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setIsLoadingValue(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [keyRecord]);
+
+  function tryFormatInitial(raw: string) {
+    try {
+      const parsed = JSON.parse(raw);
+      setValue(JSON.stringify(parsed, null, 2));
+    } catch {
+      setValue(raw);
+    }
+  }
 
   if (!isOpen || !keyRecord) return null;
 
@@ -151,11 +126,16 @@ export function KeyDrawer({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!keyRecord) return;
+    setIsSaving(true);
     const ttl = parseInt(ttlInput, 10);
-    onUpdateValue(keyRecord.key, value, ttl < 0 ? null : ttl);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 1500);
+    const result = await onUpdateValue(keyRecord.key, value, isNaN(ttl) || ttl < 0 ? null : ttl);
+    setIsSaving(false);
+    if (result !== false) {
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 1500);
+    }
   };
 
   return (
@@ -360,10 +340,17 @@ export function KeyDrawer({
 
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-400 text-black font-black uppercase text-xs hover:bg-cyan-300 transition-all shadow-[0_0_20px_-3px_rgba(0,242,254,0.5)] active:scale-95"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-400 text-black font-black uppercase text-xs hover:bg-cyan-300 transition-all shadow-[0_0_20px_-3px_rgba(0,242,254,0.5)] active:scale-95 disabled:opacity-50"
             >
-              {isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              <span>{isSaved ? "COMMITTED" : "COMMIT UPDATE"}</span>
+              {isSaving ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : isSaved ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{isSaving ? "SAVING..." : isSaved ? "COMMITTED" : "COMMIT UPDATE"}</span>
             </button>
           </div>
         </div>

@@ -19,7 +19,7 @@ import { KeyRecord, KeyType } from "@/types";
 interface KeyTableProps {
   keys: KeyRecord[];
   onSelectKey: (key: KeyRecord) => void;
-  onDeleteKey: (key: string) => void;
+  onDeleteKey: (key: string) => void | Promise<boolean>;
   selectedKeyName?: string;
 }
 
