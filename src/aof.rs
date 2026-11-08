@@ -689,7 +689,7 @@ mod linux {
             .write(true)
             .create(true)
             .read(true)
-            .open(&path)
+            .dma_open(&path)
             .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
