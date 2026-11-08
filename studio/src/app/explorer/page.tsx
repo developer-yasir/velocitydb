@@ -255,7 +255,7 @@ export default function ExplorerPage() {
             <span className="text-zinc-500 text-[11px] uppercase">Type:</span>
             <select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as any)}
+              onChange={(e) => setSelectedType(e.target.value as KeyType | "all")}
               className="bg-transparent text-white focus:outline-none cursor-pointer text-xs"
             >
               <option value="all" className="bg-[#0d121c]">ALL TYPES</option>

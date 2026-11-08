@@ -56,7 +56,9 @@ export function WebTerminal() {
   const [isCopied, setIsCopied] = useState(false);
 
   // In-memory simulated storage for realistic interactive responses!
-  const storeRef = useRef<Map<string, { value: any; type: string; ttl: number | null }>>(
+  const storeRef = useRef<
+    Map<string, { value: string | number | boolean | Record<string, unknown>; type: string; ttl: number | null }>
+  >(
     new Map([
       ["{tenant:101}session:user_token:9941", { value: "eyJhbGciOi...", type: "string", ttl: 3412 }],
       ["{user:8912}name", { value: "Yasir Saleem", type: "string", ttl: null }],

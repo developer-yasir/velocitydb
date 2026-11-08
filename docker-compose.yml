@@ -1,22 +1,24 @@
 version: '3.8'
 
 # ==============================================================================
-# VelocityDB Production Docker Compose Suite
-# - Standalone Mode: docker compose up -d
-# - 3-Node Distributed Cluster Mode: docker compose --profile cluster up -d
+# VelocityDB Enterprise Orchestration Suite
+# - Default Stack: docker compose up -d (Engine on :6379 + Studio GUI on :3000)
+# - 3-Node Cluster: docker compose --profile cluster up -d
 # ==============================================================================
 
 services:
-  # Standalone Node (Default Profile)
-  velocitydb:
+  # ============================================================================
+  # 1. High-Performance Core Engine (Rust + io_uring)
+  # ============================================================================
+  velocitydb-engine:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: velocitydb
+    container_name: velocitydb-engine
     restart: always
     ports:
-      - "6379:6379"
-      - "16379:16379"
+      - "6379:6379"   # Client RESP Protocol
+      - "16379:16379" # Cluster Gossip Bus
     ulimits:
       memlock:
         soft: -1
@@ -25,12 +27,35 @@ services:
         soft: 1048576
         hard: 1048576
     volumes:
-      - velocity_data:/opt/velocitydb/data
+      - velocity_engine_data:/opt/velocitydb/data
+    networks:
+      - velocity-net
     command: ["0.0.0.0:6379"]
 
-  # ----------------------------------------------------------------------------
+  # ============================================================================
+  # 2. VelocityDB Studio (Next.js Standalone Dark-Mode GUI)
+  # ============================================================================
+  velocitydb-studio:
+    build:
+      context: ./studio
+      dockerfile: Dockerfile
+    container_name: velocitydb-studio
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_VELOCITY_HOST=velocitydb-engine
+      - NEXT_PUBLIC_VELOCITY_PORT=6379
+      - PORT=3000
+    depends_on:
+      - velocitydb-engine
+    networks:
+      - velocity-net
+
+  # ============================================================================
   # 3-Node Distributed Cluster (Profile: cluster)
-  # ----------------------------------------------------------------------------
+  # ============================================================================
   velocity-node-1:
     profiles: ["cluster"]
     build:
@@ -46,10 +71,9 @@ services:
       nofile: { soft: 1048576, hard: 1048576 }
     volumes:
       - node1_data:/opt/velocitydb/data
-    command: ["0.0.0.0:6379"]
     networks:
-      velocity-cluster-net:
-        ipv4_address: 172.28.0.11
+      - velocity-net
+    command: ["0.0.0.0:6379"]
 
   velocity-node-2:
     profiles: ["cluster"]
@@ -66,10 +90,9 @@ services:
       nofile: { soft: 1048576, hard: 1048576 }
     volumes:
       - node2_data:/opt/velocitydb/data
-    command: ["0.0.0.0:6380"]
     networks:
-      velocity-cluster-net:
-        ipv4_address: 172.28.0.12
+      - velocity-net
+    command: ["0.0.0.0:6380"]
 
   velocity-node-3:
     profiles: ["cluster"]
@@ -86,20 +109,16 @@ services:
       nofile: { soft: 1048576, hard: 1048576 }
     volumes:
       - node3_data:/opt/velocitydb/data
-    command: ["0.0.0.0:6381"]
     networks:
-      velocity-cluster-net:
-        ipv4_address: 172.28.0.13
+      - velocity-net
+    command: ["0.0.0.0:6381"]
 
 networks:
-  velocity-cluster-net:
+  velocity-net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16
 
 volumes:
-  velocity_data:
+  velocity_engine_data:
   node1_data:
   node2_data:
   node3_data:
