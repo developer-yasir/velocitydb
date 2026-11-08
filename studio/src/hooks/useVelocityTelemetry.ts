@@ -7,7 +7,7 @@ import {
 } from "@/types";
 import { RpsDataPoint } from "@/components/dashboard/LiveRpsChart";
 import { CoreTelemetry } from "@/components/dashboard/CoreUtilizationGrid";
-import { WS_BASE_URL } from "@/lib/api-config";
+import { getWsBaseUrl } from "@/lib/api-config";
 
 interface UseVelocityTelemetryOptions {
   url?: string;
@@ -28,7 +28,6 @@ interface UseVelocityTelemetryReturn {
   manualReconnect: () => void;
 }
 
-const DEFAULT_URL = `${WS_BASE_URL}/ws/telemetry`;
 const DEFAULT_MAX_POINTS = 30;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 16000;
@@ -37,11 +36,13 @@ export function useVelocityTelemetry(
   options: UseVelocityTelemetryOptions = {}
 ): UseVelocityTelemetryReturn {
   const {
-    url = DEFAULT_URL,
+    url,
     maxHistoryPoints = DEFAULT_MAX_POINTS,
     initialBaseDelayMs = INITIAL_BACKOFF_MS,
     maxDelayMs = MAX_BACKOFF_MS,
   } = options;
+
+  const targetUrl = url || `${getWsBaseUrl()}/ws/telemetry`;
 
   const [telemetry, setTelemetry] = useState<TelemetryPayload | null>(null);
   const [rpsHistory, setRpsHistory] = useState<RpsDataPoint[]>([]);
@@ -91,7 +92,7 @@ export function useVelocityTelemetry(
     setConnectionState((prev) => (prev === "connected" ? prev : "connecting"));
 
     try {
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(targetUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -188,7 +189,7 @@ export function useVelocityTelemetry(
         }
       }, initialBaseDelayMs);
     }
-  }, [url, maxHistoryPoints, initialBaseDelayMs, maxDelayMs]);
+  }, [targetUrl, maxHistoryPoints, initialBaseDelayMs, maxDelayMs]);
 
   const manualReconnect = useCallback(() => {
     attemptsRef.current = 0;

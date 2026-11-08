@@ -43,12 +43,21 @@ fn main() {
     // Spawn Studio HTTP & WebSocket Management Server on background Tokio thread
     let telemetry = std::sync::Arc::new(tokio::sync::RwLock::new(studio_api::TelemetryData::default()));
     let key_store = std::sync::Arc::new(tokio::sync::RwLock::new(studio_api::StudioKeyStore::new_with_defaults()));
-    if let Err(e) = studio_api::spawn_studio_http_server(&studio_addr, telemetry, key_store) {
-        eprintln!("Warning: Failed to launch Studio HTTP server: {e}");
-    }
+    let studio_handle = match studio_api::spawn_studio_http_server(&studio_addr, telemetry, key_store) {
+        Ok(handle) => Some(handle),
+        Err(e) => {
+            eprintln!("Warning: Failed to launch Studio HTTP server: {e}");
+            None
+        }
+    };
 
     if let Err(e) = network::run_server(&bind_addr) {
         eprintln!("VelocityDB server error: {e}");
+    }
+
+    // Keep background management plane alive
+    if let Some(handle) = studio_handle {
+        let _ = handle.join();
     }
 }
 

@@ -14,6 +14,12 @@ services:
       dockerfile: Dockerfile
     container_name: velocitydb-engine
     restart: always
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_ADMIN
+      - IPC_LOCK
     ports:
       - "6379:6379"   # Client RESP Protocol
       - "16379:16379" # Cluster Gossip Bus
@@ -44,10 +50,6 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_VELOCITY_HOST=velocitydb-engine
-      - NEXT_PUBLIC_VELOCITY_PORT=6379
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
-      - NEXT_PUBLIC_WS_URL=ws://localhost:8080
       - PORT=3000
     depends_on:
       - velocitydb-engine

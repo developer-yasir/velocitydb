@@ -11,7 +11,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Path, State,
     },
-    http::{header, HeaderValue, Method, StatusCode},
+    http::StatusCode,
     response::IntoResponse,
     routing::get,
     Json, Router,
@@ -395,19 +395,7 @@ async fn handle_ws_telemetry(mut socket: WebSocket, state: StudioState) {
 
 /// Constructs the Axum application router with CORS enabled for Next.js Studio.
 pub fn create_studio_router(state: StudioState) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin([
-            HeaderValue::from_static("http://localhost:3000"),
-            HeaderValue::from_static("http://127.0.0.1:3000"),
-        ])
-        .allow_methods([
-            Method::GET,
-            Method::POST,
-            Method::PUT,
-            Method::DELETE,
-            Method::OPTIONS,
-        ])
-        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT]);
+    let cors = CorsLayer::permissive();
 
     Router::new()
         .route("/api/health", get(health_handler))
