@@ -193,6 +193,3 @@ export const MetricCards = memo(function MetricCards({
     </div>
   );
 });
-    </div>
-  );
-}
