@@ -32,8 +32,16 @@
 ## 💻 Live Terminal Proof: Enterprise Certification Suite
 
 <div align="center">
+  <img src="assets/live_terminal_demo.gif" alt="VelocityDB Enterprise Certification Live Terminal Video Demo" width="100%" />
+</div>
+
+<details>
+<summary><b>📷 Click to view high-resolution static vector screenshot</b></summary>
+<br/>
+<div align="center">
   <img src="assets/terminal_screenshot.svg" alt="VelocityDB Enterprise Certification Live Terminal Proof Screenshot" width="100%" />
 </div>
+</details>
 
 <details open>
 <summary><b>📋 Click to expand/collapse raw terminal log</b></summary>
@@ -465,6 +473,21 @@ cargo test --release --test advanced_stress_test -- --nocapture
 # 4. Run the FAANG-Grade Pipeline Stress Test (160,000 ops)
 cargo test --release --test stress_test -- --nocapture
 ```
+
+---
+
+## 🎬 Live Video Demonstration: Real-Time Enterprise Execution
+
+Watch VelocityDB executing the complete **4-Pillar Enterprise Certification Suite** live:
+* **Pillar 1 (LRU Eviction):** Synchronous $O(1)$ eviction under memory pressure (43,740 keys evicted without blocking).
+* **Pillar 2 (Cluster Routing):** Instant non-blocking `-MOVED` and `-ASK` redirects across 16,384 consistent hash slots.
+* **Pillar 3 (Secure Rustls):** 100,000 requests over native non-blocking TLS 1.3 (P99 tail latency strictly **19.6 µs** < 5000 µs SLA).
+* **Pillar 4 (Replication Sync):** Master-replica asynchronous replication stream received in **0.8 µs** (< 1000 µs SLA).
+* **Memory Safety:** RSS ceiling strictly enforced with 0 dropped frames, 0 panics, and 0 memory leaks.
+
+<div align="center">
+  <img src="assets/live_terminal_demo.gif" alt="VelocityDB Live Video Terminal Demo" width="100%" />
+</div>
 
 ---
 
