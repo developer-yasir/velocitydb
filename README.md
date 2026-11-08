@@ -263,7 +263,7 @@ For Enterprise Commercial Licensing, deployment sizing, or custom SLA contracts,
 * **Email:** [engyasirsaleem@gmail.com](mailto:engyasirsaleem@gmail.com)
 * **WhatsApp / Direct Mobile:** `+92 329 8594228` (`03298594228`)
 * **Location:** Worldwide Remote / Enterprise Engineering Support
-* **GitHub Repository:** [https://github.com/engyasirsaleem/velocitydb](https://github.com/engyasirsaleem/velocitydb)
+* **GitHub Repository:** [https://github.com/developer-yasir/velocitydb](https://github.com/developer-yasir/velocitydb)
 
 ---
 
