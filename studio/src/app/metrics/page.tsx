@@ -20,7 +20,7 @@ export default function MetricsPage() {
   const { telemetry, connectionState } = useVelocityTelemetry();
 
   const cores =
-    telemetry?.cpu_cores && telemetry.cpu_cores.length >= 16
+    telemetry?.cpu_cores && telemetry.cpu_cores.length > 0
       ? telemetry.cpu_cores.map((c) => ({
           id: c.core_id,
           cpuUsage: Math.round(c.load_percent),
@@ -197,7 +197,8 @@ export default function MetricsPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
+        {/* Dynamic Core Matrix Visualizer (Supports 4, 8, 16, 32, 64, or 128 cores) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-16 gap-3 max-h-[460px] overflow-y-auto pr-1">
           {cores.map((c) => {
             const isSelected = selectedCore === c.id;
             return (

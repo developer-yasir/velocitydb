@@ -40,11 +40,26 @@ pub struct TelemetryData {
 
 impl Default for TelemetryData {
     fn default() -> Self {
-        let cpu_cores = (0..16)
+        let num_shards = std::env::var("VELOCITY_SHARDS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or_else(|| {
+                std::thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(16)
+            });
+
+        let per_core_ops = if num_shards > 0 {
+            1_642_890 / (num_shards as u64)
+        } else {
+            102_500
+        };
+
+        let cpu_cores = (0..num_shards)
             .map(|i| CoreTelemetryDto {
                 core_id: i,
                 cpu_percent: 65,
-                ops_sec: 102_500,
+                ops_sec: per_core_ops,
                 sqe_depth: 32,
                 is_leader: i == 0,
             })
@@ -471,7 +486,7 @@ mod tests {
     #[tokio::test]
     async fn test_telemetry_data_default_cores() {
         let telemetry = TelemetryData::default();
-        assert_eq!(telemetry.cpu_cores.len(), 16);
+        assert!(!telemetry.cpu_cores.is_empty());
         assert_eq!(telemetry.cluster_slots_assigned, 16384);
         assert_eq!(telemetry.cluster_state, "ok");
     }

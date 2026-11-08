@@ -21,9 +21,9 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
 }: CoreUtilizationGridProps) {
   const [selectedCoreId, setSelectedCoreId] = useState<number>(0);
 
-  // Stable 16-shard fallback to eliminate layout shift during initial socket handshake
+  // Dynamic shard count fallback to eliminate layout shift during initial socket handshake
   const displayCores =
-    cores && cores.length >= 16
+    cores && cores.length > 0
       ? cores
       : Array.from({ length: 16 }, (_, i) => ({
           coreId: i,
@@ -49,12 +49,12 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
             <h2 className="text-base font-black font-mono tracking-tight text-white uppercase flex items-center gap-2">
               <span>CORE UTILIZATION GRID</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-purple-950/80 text-purple-300 border border-purple-800/60 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-                16 PINNED SHARDS
+                {displayCores.length} PINNED SHARDS
               </span>
             </h2>
           </div>
           <p className="text-xs text-zinc-400 font-mono mt-1">
-            Proving 100% lock-free Thread-per-Core hardware saturation across all online CPU cores.
+            Proving 100% lock-free Thread-per-Core hardware saturation across all {displayCores.length} online CPU cores.
           </p>
         </div>
 
@@ -65,8 +65,8 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
         </div>
       </div>
 
-      {/* 16-Core Matrix (Sleek Circular Gauges + Progress Bars) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+      {/* Dynamic Core Matrix (Supports 4, 8, 16, 32, 64, or 128 Cores) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-16 gap-3 max-h-[520px] overflow-y-auto pr-1">
         {displayCores.map((core) => {
           const isSelected = selectedCoreId === core.coreId;
 
