@@ -355,6 +355,18 @@ async fn handle_ws_telemetry(mut socket: WebSocket, state: StudioState) {
             msg = socket.next() => {
                 match msg {
                     Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(Message::Ping(payload))) => {
+                        if socket.send(Message::Pong(payload)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Text(text))) => {
+                        if text.trim().eq_ignore_ascii_case("ping") {
+                            if socket.send(Message::Text("PONG".to_string())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }

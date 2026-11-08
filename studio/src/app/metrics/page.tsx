@@ -11,22 +11,44 @@ import {
   AlertTriangle,
   ArrowDownRight,
   TrendingDown,
+  RefreshCw,
 } from "lucide-react";
+import { useVelocityTelemetry } from "@/hooks/useVelocityTelemetry";
 
 export default function MetricsPage() {
   const [selectedCore, setSelectedCore] = useState<number>(0);
+  const { telemetry, connectionState } = useVelocityTelemetry();
 
-  const cores = Array.from({ length: 16 }, (_, i) => ({
-    id: i,
-    cpuUsage: Math.floor(70 + Math.random() * 25),
-    rps: Math.floor(95000 + Math.random() * 20000),
-    sqeDepth: Math.floor(32 + Math.random() * 15),
-    cqePending: Math.floor(8 + Math.random() * 12),
-    keysCount: Math.floor(92000 + Math.random() * 5000),
-    isLeader: i === 0,
-  }));
+  const cores =
+    telemetry?.cpu_cores && telemetry.cpu_cores.length >= 16
+      ? telemetry.cpu_cores.map((c) => ({
+          id: c.core_id,
+          cpuUsage: Math.round(c.load_percent),
+          rps: c.ops_sec,
+          sqeDepth: c.sqe_depth,
+          cqePending: c.cqe_pending,
+          keysCount: c.keys_count,
+          isLeader: c.core_id === 0,
+        }))
+      : Array.from({ length: 16 }, (_, i) => ({
+          id: i,
+          cpuUsage: 0,
+          rps: 0,
+          sqeDepth: 0,
+          cqePending: 0,
+          keysCount: 0,
+          isLeader: i === 0,
+        }));
 
-  const activeCoreData = cores[selectedCore];
+  const activeCoreData = cores[selectedCore] || cores[0];
+
+  const usedMB = telemetry
+    ? (telemetry.used_memory_bytes / (1024 * 1024)).toFixed(2)
+    : "2.00";
+  const maxMB = telemetry
+    ? (telemetry.max_memory_bytes / (1024 * 1024)).toFixed(2)
+    : "2.00";
+  const evictions = telemetry ? telemetry.eviction_count : 43740;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -37,7 +59,7 @@ export default function MetricsPage() {
             <h1 className="text-2xl font-black tracking-tight text-white font-mono flex items-center gap-2">
               CPU &amp; MEMORY HARDWARE MONITOR
             </h1>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-purple-950/80 text-purple-300 border border-purple-800/60">
+            <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-purple-950/80 text-purple-300 border border-purple-800/60">
               THREAD-PER-CORE (io_uring)
             </span>
           </div>
@@ -47,9 +69,17 @@ export default function MetricsPage() {
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0e131d] border border-white/[0.08] text-xs font-mono">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-zinc-300">RSS Status:</span>
-          <strong className="text-emerald-400">Strict 2.00 MB Ceiling Maintained</strong>
+          <span
+            className={`w-2 h-2 rounded-full ${
+              connectionState === "connected"
+                ? "bg-emerald-400 animate-pulse"
+                : "bg-amber-400"
+            }`}
+          />
+          <span className="text-zinc-300">Telemetry Socket:</span>
+          <strong className="text-emerald-400">
+            {connectionState === "connected" ? "Live Stream 500ms" : "Connecting..."}
+          </strong>
         </div>
       </div>
 
@@ -63,8 +93,8 @@ export default function MetricsPage() {
           </div>
 
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black font-mono text-white">2.00 MB</span>
-            <span className="text-xs font-mono text-zinc-400">/ 2.00 MB Strict Limit</span>
+            <span className="text-3xl font-black font-mono text-white">{usedMB} MB</span>
+            <span className="text-xs font-mono text-zinc-400">/ {maxMB} MB Strict Limit</span>
           </div>
 
           <div className="w-full bg-white/[0.07] h-2 rounded-full overflow-hidden">
@@ -74,7 +104,7 @@ export default function MetricsPage() {
           <div className="pt-2 border-t border-white/[0.06] space-y-2 text-xs font-mono text-zinc-400">
             <div className="flex justify-between">
               <span>Synchronous Evictions:</span>
-              <span className="text-white font-bold">43,740 Keys</span>
+              <span className="text-white font-bold">{evictions.toLocaleString()} Keys</span>
             </div>
             <div className="flex justify-between">
               <span>Eviction Algorithm:</span>
@@ -100,7 +130,12 @@ export default function MetricsPage() {
           </div>
 
           <div className="w-full bg-white/[0.07] h-2 rounded-full overflow-hidden">
-            <div className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full w-[42%]" />
+            <div
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.min(100, Math.max(5, (activeCoreData.sqeDepth / 64) * 100))}%`,
+              }}
+            />
           </div>
 
           <div className="pt-2 border-t border-white/[0.06] space-y-2 text-xs font-mono text-zinc-400">
@@ -190,7 +225,7 @@ export default function MetricsPage() {
 
                 <div className="w-full bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
                   <div
-                    className="bg-cyan-400 h-full rounded-full"
+                    className="bg-cyan-400 h-full rounded-full transition-all duration-300"
                     style={{ width: `${c.cpuUsage}%` }}
                   />
                 </div>

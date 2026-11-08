@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { KeyRecord, IVelocityKey } from "@/types";
+import { API_BASE_URL } from "@/lib/api-config";
 
 interface KeyDrawerProps {
   keyRecord: KeyRecord | null;
@@ -59,7 +60,7 @@ export function KeyDrawer({
     let isCancelled = false;
     setIsLoadingValue(true);
 
-    fetch(`http://localhost:8080/api/keys/${encodeURIComponent(keyRecord.key)}`)
+    fetch(`${API_BASE_URL}/api/keys/${encodeURIComponent(keyRecord.key)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();

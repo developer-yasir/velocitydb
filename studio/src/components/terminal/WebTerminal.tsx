@@ -12,6 +12,7 @@ import {
   Layers,
   ChevronRight,
 } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api-config";
 
 interface TerminalLine {
   id: string;
@@ -77,7 +78,7 @@ export function WebTerminal() {
     });
   }, [lines]);
 
-  const handleExecute = (rawCommand?: string) => {
+  const handleExecute = async (rawCommand?: string) => {
     const cmd = (rawCommand || input).trim();
     if (!cmd) return;
 
@@ -97,13 +98,14 @@ export function WebTerminal() {
     setHistoryIndex(-1);
     setInput("");
 
-    // Process command against in-memory store
+    const startTime = performance.now();
+
+    // Process command against backend and fallback store
     const tokens = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
     const commandName = tokens[0]?.toUpperCase();
     const cleanTokens = tokens.map((t) => t.replace(/^"|"$/g, ""));
 
-    const latency = `${(0.8 + Math.random() * 2.2).toFixed(1)} µs`;
-
+    const defaultLatency = `${Math.max(1.1, (performance.now() - startTime) * 1000).toFixed(1)} µs`;
     let responseLine: TerminalLine;
 
     switch (commandName) {
@@ -112,6 +114,12 @@ export function WebTerminal() {
         return;
 
       case "PING": {
+        try {
+          await fetch(`${API_BASE_URL}/api/health`);
+        } catch {
+          // offline
+        }
+        const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
         const reply = cleanTokens[1] ? `"${cleanTokens[1]}"` : "+PONG";
         responseLine = {
           id: `res-${Date.now()}`,
@@ -127,6 +135,7 @@ export function WebTerminal() {
         const key = cleanTokens[1];
         const val = cleanTokens[2];
         if (!key || val === undefined) {
+          const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
           responseLine = {
             id: `res-${Date.now()}`,
             type: "error",
@@ -135,12 +144,27 @@ export function WebTerminal() {
             timestamp: timeStr,
           };
         } else {
-          // Check for EX <seconds>
-          let ttl = null;
+          let ttl: number | null = null;
           if (cleanTokens[3]?.toUpperCase() === "EX" && cleanTokens[4]) {
             ttl = parseInt(cleanTokens[4], 10) || null;
           }
+
+          try {
+            await fetch(`${API_BASE_URL}/api/keys`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                key,
+                value: val,
+                ttl_seconds: ttl,
+              }),
+            });
+          } catch {
+            // offline fallback
+          }
+
           storeRef.current.set(key, { value: val, type: "string", ttl });
+          const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
           responseLine = {
             id: `res-${Date.now()}`,
             type: "response",
@@ -155,6 +179,7 @@ export function WebTerminal() {
       case "GET": {
         const key = cleanTokens[1];
         if (!key) {
+          const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
           responseLine = {
             id: `res-${Date.now()}`,
             type: "error",
@@ -163,8 +188,24 @@ export function WebTerminal() {
             timestamp: timeStr,
           };
         } else {
-          const entry = storeRef.current.get(key);
-          if (!entry) {
+          let fetchedVal: string | null = null;
+          try {
+            const res = await fetch(`${API_BASE_URL}/api/keys/${encodeURIComponent(key)}`);
+            if (res.ok) {
+              const d = await res.json();
+              fetchedVal = d.value;
+            }
+          } catch {
+            // offline fallback
+          }
+
+          if (fetchedVal === null) {
+            const entry = storeRef.current.get(key);
+            if (entry) fetchedVal = String(entry.value);
+          }
+
+          const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
+          if (fetchedVal === null) {
             responseLine = {
               id: `res-${Date.now()}`,
               type: "null",
@@ -176,7 +217,7 @@ export function WebTerminal() {
             responseLine = {
               id: `res-${Date.now()}`,
               type: "response",
-              content: `"${entry.value}"`,
+              content: `"${fetchedVal}"`,
               latency,
               timestamp: timeStr,
             };
@@ -187,11 +228,24 @@ export function WebTerminal() {
 
       case "DEL": {
         const key = cleanTokens[1];
-        const deleted = storeRef.current.delete(key);
+        let wasDeleted = false;
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/keys/${encodeURIComponent(key)}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            wasDeleted = true;
+          }
+        } catch {
+          // offline
+        }
+        if (storeRef.current.delete(key)) wasDeleted = true;
+
+        const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
         responseLine = {
           id: `res-${Date.now()}`,
           type: "integer",
-          content: `(integer) ${deleted ? 1 : 0}`,
+          content: `(integer) ${wasDeleted ? 1 : 0}`,
           latency,
           timestamp: timeStr,
         };
@@ -205,6 +259,7 @@ export function WebTerminal() {
         if (entry) {
           ttlVal = entry.ttl !== null ? entry.ttl : -1; // -1 = persist
         }
+        const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
         responseLine = {
           id: `res-${Date.now()}`,
           type: "integer",
@@ -217,12 +272,26 @@ export function WebTerminal() {
 
       case "KEYS": {
         const pattern = cleanTokens[1] || "*";
-        const allKeys = Array.from(storeRef.current.keys());
+        let allKeys = Array.from(storeRef.current.keys());
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/keys`);
+          if (res.ok) {
+            const list = await res.json();
+            if (Array.isArray(list)) {
+              allKeys = Array.from(new Set([...allKeys, ...list.map((k: { key: string }) => k.key)]));
+            }
+          }
+        } catch {
+          // offline
+        }
+
         const matching =
           pattern === "*"
             ? allKeys
             : allKeys.filter((k) => k.includes(pattern.replace(/\*/g, "")));
 
+        const latency = `${((performance.now() - startTime) * 1000).toFixed(1)} µs`;
         responseLine = {
           id: `res-${Date.now()}`,
           type: "array",
@@ -240,7 +309,7 @@ export function WebTerminal() {
             id: `res-${Date.now()}`,
             type: "response",
             content: `cluster_state:ok\r\ncluster_slots_assigned:16384\r\ncluster_slots_ok:16384\r\ncluster_known_nodes:3\r\ncluster_size:3\r\ncluster_current_epoch:1\r\ncluster_my_epoch:1\r\ncluster_stats_messages_sent:149201\r\ncluster_stats_messages_received:149198`,
-            latency,
+            latency: defaultLatency,
             timestamp: timeStr,
           };
         } else if (sub === "SLOTS") {
@@ -261,7 +330,7 @@ export function WebTerminal() {
               `   3) 1) "127.0.0.1"`,
               `      2) (integer) 6381`,
             ],
-            latency,
+            latency: defaultLatency,
             timestamp: timeStr,
           };
         } else if (sub === "NODES") {
@@ -269,7 +338,7 @@ export function WebTerminal() {
             id: `res-${Date.now()}`,
             type: "response",
             content: `07c37dfeb2352134135 127.0.0.1:6379@16379 myself,master - 0 1731057400000 1 connected 0-5461\r\n6750d1c05873e3518a9 127.0.0.1:6380@16380 master - 0 1731057400000 2 connected 5462-10922\r\n39a489110a26e84992b 127.0.0.1:6381@16381 master - 0 1731057400000 3 connected 10923-16383`,
-            latency,
+            latency: defaultLatency,
             timestamp: timeStr,
           };
         } else {
@@ -277,7 +346,7 @@ export function WebTerminal() {
             id: `res-${Date.now()}`,
             type: "error",
             content: `-ERR unknown cluster subcommand '${cleanTokens[1]}'`,
-            latency,
+            latency: defaultLatency,
             timestamp: timeStr,
           };
         }
@@ -289,7 +358,7 @@ export function WebTerminal() {
           id: `res-${Date.now()}`,
           type: "response",
           content: `# Server\r\nvelocitydb_version:1.0.0-enterprise\r\nos:Linux 6.8.0-45-generic x86_64\r\narch_bits:64\r\nmultiplexing_api:io_uring\r\nprocess_id:4819\r\ntcp_port:6379\r\nuptime_in_seconds:86400\r\n\r\n# Memory\r\nused_memory:2097152\r\nused_memory_human:2.00M\r\nmaxmemory:2097152\r\nmaxmemory_policy:allkeys-lru\r\nmem_allocator:mimalloc\r\n\r\n# Replication\r\nrole:master\r\nconnected_slaves:2\r\nmaster_repl_offset:10485760`,
-          latency,
+          latency: defaultLatency,
           timestamp: timeStr,
         };
         break;
@@ -300,7 +369,7 @@ export function WebTerminal() {
           id: `res-${Date.now()}`,
           type: "system",
           content: `VelocityDB Commands Guide:\r\n- SET key value [EX sec]    : Set key with optional TTL\r\n- GET key                   : Get key value\r\n- DEL key                   : Delete key\r\n- TTL key                   : Check expiration remaining\r\n- KEYS pattern              : Find keys matching pattern\r\n- PING [msg]                : Probe connection latency\r\n- CLUSTER INFO              : Show cluster topology state\r\n- CLUSTER SLOTS             : Show 16384 slot allocation\r\n- CLUSTER NODES             : List all nodes in gossip bus\r\n- INFO                      : Display engine memory & replication stats\r\n- CLEAR                     : Clear the terminal console`,
-          latency,
+          latency: defaultLatency,
           timestamp: timeStr,
         };
         break;
@@ -311,7 +380,7 @@ export function WebTerminal() {
           id: `res-${Date.now()}`,
           type: "error",
           content: `-ERR unknown command '${commandName}'`,
-          latency,
+          latency: defaultLatency,
           timestamp: timeStr,
         };
     }

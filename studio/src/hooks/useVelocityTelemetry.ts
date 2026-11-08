@@ -7,6 +7,7 @@ import {
 } from "@/types";
 import { RpsDataPoint } from "@/components/dashboard/LiveRpsChart";
 import { CoreTelemetry } from "@/components/dashboard/CoreUtilizationGrid";
+import { WS_BASE_URL } from "@/lib/api-config";
 
 interface UseVelocityTelemetryOptions {
   url?: string;
@@ -27,7 +28,7 @@ interface UseVelocityTelemetryReturn {
   manualReconnect: () => void;
 }
 
-const DEFAULT_URL = "ws://localhost:8080/ws/telemetry";
+const DEFAULT_URL = `${WS_BASE_URL}/ws/telemetry`;
 const DEFAULT_MAX_POINTS = 30;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 16000;

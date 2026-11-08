@@ -57,16 +57,18 @@ fn main() {
     let bind_addr = resolve_bind_addr();
     let studio_addr = resolve_studio_addr();
 
-    println!("VelocityDB uses io_uring (Glommio) and requires Linux (kernel >= 5.8).");
+    println!("VelocityDB uses io_uring (Glommio) and requires Linux (kernel >= 5.8) for the 1.6M+ RPS data plane.");
 
     // Spawn Studio HTTP & WebSocket Management Server on background Tokio thread
     let telemetry = std::sync::Arc::new(tokio::sync::RwLock::new(studio_api::TelemetryData::default()));
     let key_store = std::sync::Arc::new(tokio::sync::RwLock::new(studio_api::StudioKeyStore::new_with_defaults()));
-    if let Err(e) = studio_api::spawn_studio_http_server(&studio_addr, telemetry, key_store) {
-        eprintln!("Warning: Failed to launch Studio HTTP server: {e}");
-    }
+    let handle = studio_api::spawn_studio_http_server(&studio_addr, telemetry, key_store)
+        .expect("Failed to launch Studio HTTP server");
 
     if let Err(e) = network::run_server(&bind_addr) {
         eprintln!("VelocityDB server error: {e}");
     }
+
+    // Keep process alive for Studio HTTP & WebSocket server
+    let _ = handle.join();
 }

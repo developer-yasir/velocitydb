@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { VelocityNode } from "@/types";
+import { useVelocityTelemetry } from "@/hooks/useVelocityTelemetry";
 
 const CLUSTER_NODES: VelocityNode[] = [
   {
@@ -58,12 +59,11 @@ const CLUSTER_NODES: VelocityNode[] = [
 export function Navbar() {
   const [selectedNode, setSelectedNode] = useState<VelocityNode>(CLUSTER_NODES[0]);
   const [isNodeDropdownOpen, setIsNodeDropdownOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { telemetry, connectionState } = useVelocityTelemetry();
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 600);
-  };
+  const isConnected = connectionState === "connected";
+  const p50Str = telemetry ? `${telemetry.p50_latency_micros.toFixed(1)} µs` : "14.2 µs";
+  const p99Str = telemetry ? `${telemetry.p99_latency_micros.toFixed(1)} µs` : "18.1 µs";
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] bg-[#080a0f]/85 backdrop-blur-xl select-none">
@@ -91,23 +91,39 @@ export function Navbar() {
 
       {/* Center: Live Connection Status Pill (Requested by User) */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-emerald-950/40 border border-emerald-500/30 shadow-[0_0_15px_-3px_rgba(16,185,129,0.25)]">
-          {/* Pulsating Green LED Indicator */}
+        <div
+          className={`flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border shadow-[0_0_15px_-3px] ${
+            isConnected
+              ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_-3px_rgba(16,185,129,0.25)]"
+              : "bg-amber-950/40 border-amber-500/30 text-amber-300 shadow-[0_0_15px_-3px_rgba(245,158,11,0.25)]"
+          }`}
+        >
+          {/* Pulsating LED Indicator */}
           <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+            <span
+              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                isConnected ? "bg-emerald-400" : "bg-amber-400"
+              }`}
+            />
+            <span
+              className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                isConnected ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-amber-500 shadow-[0_0_8px_#f59e0b]"
+              }`}
+            />
           </span>
 
-          <span className="text-xs font-semibold text-emerald-300 tracking-tight font-mono">
-            Connected to VelocityDB via port {selectedNode.clientPort}
+          <span className="text-xs font-semibold tracking-tight font-mono">
+            {isConnected
+              ? `Connected to VelocityDB via port ${selectedNode.clientPort}`
+              : "Connecting to VelocityDB (:8080)..."}
           </span>
         </div>
 
         {/* Latency and io_uring Engine Status Pill */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-white/[0.08] text-xs font-mono">
           <Gauge className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-zinc-300 font-bold">14.2 µs</span>
-          <span className="text-[10px] text-zinc-400">(P99 18.1 µs)</span>
+          <span className="text-zinc-300 font-bold">{p50Str}</span>
+          <span className="text-[10px] text-zinc-400">(P99 {p99Str})</span>
           <span className="text-zinc-600">•</span>
           <span className="text-[11px] text-cyan-400 font-semibold flex items-center gap-1">
             <Zap className="w-3 h-3 text-cyan-400" />

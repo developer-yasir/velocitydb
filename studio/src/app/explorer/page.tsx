@@ -20,8 +20,9 @@ import { KeyTable } from "@/components/explorer/KeyTable";
 import { KeyDrawer } from "@/components/explorer/KeyDrawer";
 import { NewKeyModal } from "@/components/explorer/NewKeyModal";
 import { useToast } from "@/components/ui/Toast";
+import { API_BASE_URL as API_ROOT } from "@/lib/api-config";
 
-const API_BASE_URL = "http://localhost:8080/api/keys";
+const API_BASE_URL = `${API_ROOT}/api/keys`;
 
 function mapVelocityKeyToRecord(dto: IVelocityKey): KeyRecord {
   return {

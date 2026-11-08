@@ -7,6 +7,7 @@ import { CoreUtilizationGrid } from "@/components/dashboard/CoreUtilizationGrid"
 import { PulseLiveLog, WireCommand } from "@/components/dashboard/PulseLiveLog";
 import { useVelocityTelemetry } from "@/hooks/useVelocityTelemetry";
 import { ShieldCheck, Activity, Zap, RefreshCw, AlertCircle } from "lucide-react";
+import { WS_BASE_URL } from "@/lib/api-config";
 
 export default function PulseDashboardPage() {
   const {
@@ -19,7 +20,7 @@ export default function PulseDashboardPage() {
     togglePause,
     manualReconnect,
   } = useVelocityTelemetry({
-    url: "ws://localhost:8080/ws/telemetry",
+    url: `${WS_BASE_URL}/ws/telemetry`,
     maxHistoryPoints: 40,
   });
 
