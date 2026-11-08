@@ -676,7 +676,7 @@ pub use linux::*;
 #[cfg(target_os = "linux")]
 mod linux {
     use super::*;
-    use glommio::io::{DmaFile, OpenOptions};
+    use glommio::io::OpenOptions;
 
     /// Spawns an asynchronous background Glommio fiber that drains the `AofEngine` queue
     /// and performs direct I/O writes via `DmaFile` and `io_uring` without blocking the main event loop.
@@ -689,9 +689,9 @@ mod linux {
             .write(true)
             .create(true)
             .read(true)
-            .dma(&path)
+            .open(&path)
             .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
         let mut file_offset: u64 = 0;
 

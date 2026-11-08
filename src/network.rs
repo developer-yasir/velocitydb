@@ -21,8 +21,10 @@ use crate::replication::{self, PsyncResult, ReplicationHub};
 use crate::security::{acl, AclEngine, ConnectionAcl};
 #[cfg(target_os = "linux")]
 use crate::security::AsyncTlsStream;
+#[cfg(test)]
+use crate::security::create_test_tls_config;
 #[cfg(any(target_os = "linux", test))]
-use crate::security::{create_test_tls_config, StreamWrapper};
+use crate::security::StreamWrapper;
 use futures_lite::io::AsyncWriteExt;
 #[cfg(target_os = "linux")]
 use rustls::ServerConfig;
@@ -1823,6 +1825,7 @@ mod linux {
         LocalExecutorBuilder::new(Placement::Fixed(core_id))
             .name(&format!("velocity-core-{core_id}"))
             .spawn(fut_gen)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     }
 
     /// Launches the full Thread-per-Core TCP server across all available online CPU cores.
