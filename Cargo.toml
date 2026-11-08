@@ -1,0 +1,33 @@
+[package]
+name = "velocitydb"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yasir Saleem <engyasirsaleem@gmail.com>"]
+description = "A bleeding-edge, thread-per-core Redis alternative in Rust powered by io_uring"
+license = "AGPL-3.0-only"
+
+[dependencies]
+# SIMD-accelerated byte searching for RESP protocol parsing
+memchr = "2.7"
+
+# Low-level POSIX and OS primitives (CPU affinity, memory locking, direct I/O flags)
+libc = "0.2"
+
+# High-performance drop-in global allocator replacing the system malloc
+mimalloc = "0.1"
+
+# Async I/O extension traits (AsyncReadExt, AsyncWriteExt)
+futures-lite = "1.13"
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
+rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Thread-per-core io_uring asynchronous runtime (Linux kernel >= 5.8)
+glommio = "0.9"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+overflow-checks = false

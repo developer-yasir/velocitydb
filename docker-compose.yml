@@ -1,0 +1,105 @@
+version: '3.8'
+
+# ==============================================================================
+# VelocityDB Production Docker Compose Suite
+# - Standalone Mode: docker compose up -d
+# - 3-Node Distributed Cluster Mode: docker compose --profile cluster up -d
+# ==============================================================================
+
+services:
+  # Standalone Node (Default Profile)
+  velocitydb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: velocitydb
+    restart: always
+    ports:
+      - "6379:6379"
+      - "16379:16379"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    volumes:
+      - velocity_data:/opt/velocitydb/data
+    command: ["0.0.0.0:6379"]
+
+  # ----------------------------------------------------------------------------
+  # 3-Node Distributed Cluster (Profile: cluster)
+  # ----------------------------------------------------------------------------
+  velocity-node-1:
+    profiles: ["cluster"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: velocity-node-1
+    restart: always
+    ports:
+      - "6379:6379"
+      - "16379:16379"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 1048576, hard: 1048576 }
+    volumes:
+      - node1_data:/opt/velocitydb/data
+    command: ["0.0.0.0:6379"]
+    networks:
+      velocity-cluster-net:
+        ipv4_address: 172.28.0.11
+
+  velocity-node-2:
+    profiles: ["cluster"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: velocity-node-2
+    restart: always
+    ports:
+      - "6380:6380"
+      - "16380:16380"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 1048576, hard: 1048576 }
+    volumes:
+      - node2_data:/opt/velocitydb/data
+    command: ["0.0.0.0:6380"]
+    networks:
+      velocity-cluster-net:
+        ipv4_address: 172.28.0.12
+
+  velocity-node-3:
+    profiles: ["cluster"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: velocity-node-3
+    restart: always
+    ports:
+      - "6381:6381"
+      - "16381:16381"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 1048576, hard: 1048576 }
+    volumes:
+      - node3_data:/opt/velocitydb/data
+    command: ["0.0.0.0:6381"]
+    networks:
+      velocity-cluster-net:
+        ipv4_address: 172.28.0.13
+
+networks:
+  velocity-cluster-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  velocity_data:
+  node1_data:
+  node2_data:
+  node3_data:

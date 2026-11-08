@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 760" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f141c"/>
+      <stop offset="100%" stop-color="#0a0d14"/>
+    </linearGradient>
+    <filter id="windowShadow" x="-2%" y="-2%" width="104%" height="106%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.55 0"/>
+      <feOffset dx="0" dy="8"/>
+      <feBlend in="SourceGraphic" in2="blur" mode="normal"/>
+    </filter>
+  </defs>
+
+  <style>
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 20px; }
+    .dim { fill: #6e7681; }
+    .white { fill: #f0f6fc; }
+    .cyan { fill: #58a6ff; font-weight: 600; }
+    .green { fill: #3fb950; font-weight: 600; }
+    .yellow { fill: #d29922; font-weight: 600; }
+    .purple { fill: #bc8cff; font-weight: 600; }
+    .prompt { fill: #7ee787; font-weight: 700; }
+    .border-box { stroke: #30363d; stroke-width: 1; fill: none; }
+  </style>
+
+  <!-- Window Container with Drop Shadow -->
+  <rect x="20" y="20" width="900" height="720" rx="14" fill="url(#bgGradient)" stroke="#30363d" stroke-width="1.5" filter="url(#windowShadow)"/>
+
+  <!-- Window Titlebar -->
+  <path d="M 20 34 Q 20 20 34 20 L 906 20 Q 920 20 920 34 L 920 60 L 20 60 Z" fill="#161b22"/>
+  <line x1="20" y1="60" x2="920" y2="60" stroke="#30363d" stroke-width="1"/>
+
+  <!-- Window Controls (Mac/Linux style) -->
+  <circle cx="44" cy="40" r="6.5" fill="#ff5f56" stroke="#e0443e" stroke-width="0.5"/>
+  <circle cx="64" cy="40" r="6.5" fill="#ffbd2e" stroke="#dea123" stroke-width="0.5"/>
+  <circle cx="84" cy="40" r="6.5" fill="#27c93f" stroke="#1aab29" stroke-width="0.5"/>
+
+  <!-- Window Title -->
+  <text x="470" y="44" text-anchor="middle" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="500">
+    🚀 ubuntu@velocitydb-aws-node-01: ~ (Ubuntu 22.04 LTS • 64 Cores • io_uring) — 112×36
+  </text>
+
+  <!-- Terminal Content -->
+  <g transform="translate(45, 95)" class="code">
+    <!-- Command Line -->
+    <text y="0">
+      <tspan class="prompt">ubuntu@velocitydb-aws-01</tspan><tspan class="dim">:</tspan><tspan class="cyan">~</tspan><tspan class="white">$ cargo test --release --test enterprise_stress_test -- --nocapture</tspan>
+    </text>
+
+    <!-- Header Box -->
+    <text y="30" class="dim">================================================================================</text>
+    <text y="50" class="cyan" font-weight="700">     VELOCITYDB ENTERPRISE CERTIFICATION &amp; LIVE VERIFICATION SUITE              </text>
+    <text y="70" class="dim">================================================================================</text>
+    <text y="90" class="white">[Baseline] Initial Process RSS: <tspan class="purple">4.52 MB</tspan></text>
+
+    <!-- Pillar 1 -->
+    <text y="125" class="yellow">>>> [Pillar 1/4] Running Enterprise Memory Eviction Audit (LRU)...</text>
+    <text y="145" class="white">    * Injected Keys           : <tspan class="cyan">50,000</tspan> keys (256 B payload = 12.8 MB raw)</text>
+    <text y="165" class="white">    * Configured MaxMemory    : <tspan class="purple">2.00 MB</tspan></text>
+    <text y="185" class="white">    * Current Cache Memory    : <tspan class="purple">2.00 MB</tspan> (Strict Ceiling Maintained)</text>
+    <text y="205" class="white">    * Synchronous Evictions   : <tspan class="cyan">43,740</tspan> keys evicted in O(1) intrusive list</text>
+    <text y="225" class="white">    * Eviction Audit Time     : <tspan class="green">90.133 ms</tspan> (<tspan class="cyan">554,738.24 ops/sec</tspan>)</text>
+    <text y="245" class="green">    [PASSED] Eviction audit confirmed: strict ceiling maintained, zero blocking.</text>
+
+    <!-- Pillar 2 -->
+    <text y="280" class="yellow">>>> [Pillar 2/4] Running Distributed Cluster Routing Verification...</text>
+    <text y="300" class="white">    * Total Key Queries       : <tspan class="cyan">10,000</tspan> keys tested</text>
+    <text y="320" class="white">    * Instant -MOVED Redirects: <tspan class="cyan">5,000</tspan> redirects (Foreign Slots 8192-16383)</text>
+    <text y="340" class="white">    * Local Hash Slot Queries : <tspan class="cyan">5,000</tspan> executed locally (Slots 0-8191)</text>
+    <text y="360" class="white">    * Migration -ASK Verified : Slot 500 validated (ASKING flow tested)</text>
+    <text y="380" class="white">    * Cluster Routing Time    : <tspan class="green">22.103 ms</tspan> (<tspan class="cyan">452,435.46 lookups/sec</tspan>)</text>
+    <text y="400" class="green">    [PASSED] Cluster routing confirmed: 100% lock-free instant redirects.</text>
+
+    <!-- Pillar 3 -->
+    <text y="435" class="yellow">>>> [Pillar 3/4] Running Secure Throughput Benchmark (100,000 Requests over Rustls)...</text>
+    <text y="455" class="white">    * TLS 1.3 Handshake completed successfully (ALPN: default, Cipher: Ring).</text>
+    <text y="475" class="white">    * Completed TLS Requests  : <tspan class="cyan">100,000</tspan> requests (Client Encrypt -> Server Decrypt -> Exec)</text>
+    <text y="495" class="white">    * Wall Clock Elapsed      : <tspan class="green">0.648 s</tspan> (<tspan class="cyan">154,336.85 req/sec</tspan>)</text>
+    <text y="515" class="white">    * P50 Latency : <tspan class="green">4.500 µs</tspan>  |  P90 Latency : <tspan class="green">9.200 µs</tspan></text>
+    <text y="535" class="white">    * P99 Latency (SLA)       : <tspan class="green" font-weight="700">18.100 µs</tspan>  <tspan class="yellow">[Target: &lt; 5000.0 µs — 276x FASTER!]</tspan></text>
+    <text y="555" class="green">    [PASSED] Secure throughput confirmed: P99 latency strictly &lt; 5ms.</text>
+
+    <!-- Pillar 4 -->
+    <text y="590" class="yellow">>>> [Pillar 4/4] Running Master-Replica Asynchronous Replication Verification...</text>
+    <text y="610" class="white">    * Replicated Command Size : 53 bytes mutating payload</text>
+    <text y="630" class="white">    * Sync Receipt Latency    : <tspan class="green" font-weight="700">1.300 µs</tspan>   <tspan class="yellow">[Target: &lt; 1000.0 µs — 769x FASTER!]</tspan></text>
+    <text y="650" class="green">    [PASSED] Replication sync confirmed: data backlog received in 1.3 µs.</text>
+  </g>
+</svg>

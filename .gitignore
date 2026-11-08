@@ -1,0 +1,8 @@
+/target
+**/*.rs.bk
+*.aof
+*.rdb
+*.log
+.idea/
+.vscode/
+*.swp
