@@ -371,6 +371,13 @@ npm install
 npm run dev
 ```
 
+### 🌐 Embedded Studio HTTP & WebSocket Management Plane (Port 8080)
+
+VelocityDB embeds an asynchronous **Axum (Tokio-powered)** management server on port `8080` running on a dedicated background thread to guarantee zero impact on the 1.6M+ RPS `io_uring` data plane:
+* **WebSocket Stream (`/ws/telemetry`):** 500ms broadcast of live RPS, 16-core CPU affinity, memory RSS, and active sockets.
+* **REST API (`/api/keys`):** Full CRUD JSON endpoints for Keys, Hashes, Lists, and Streams with CORS enabled for `http://localhost:3000`.
+* **Health API (`/api/health`):** Instant JSON health status and engine versioning.
+
 ---
 
 ## 💻 Zero-Code-Change Application Integration

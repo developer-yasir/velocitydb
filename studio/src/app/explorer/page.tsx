@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Database,
   Search,
@@ -111,6 +111,40 @@ export default function ExplorerPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Sync with embedded VelocityDB REST management API (port 8080)
+  useEffect(() => {
+    fetch("http://localhost:8080/api/keys")
+      .then((res) => {
+        if (!res.ok) throw new Error("API status not ok");
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const remoteKeys: KeyRecord[] = data.map((d: {
+            key: string;
+            key_type: string;
+            slot: number;
+            target_node: string;
+            ttl_seconds: number | null;
+            size_bytes: number;
+            last_accessed: string;
+          }) => ({
+            key: d.key,
+            type: (d.key_type.toLowerCase() || "string") as KeyType,
+            slot: d.slot,
+            targetNode: d.target_node,
+            ttlSeconds: d.ttl_seconds,
+            sizeBytes: d.size_bytes,
+            lastAccessed: d.last_accessed || "Just now",
+          }));
+          setKeys(remoteKeys);
+        }
+      })
+      .catch(() => {
+        // Quiet fallback to INITIAL_KEYS when engine offline
+      });
+  }, []);
+
   // Filter keys based on search and dropdown filters
   const filteredKeys = keys.filter((k) => {
     const matchesSearch =
@@ -154,6 +188,18 @@ export default function ExplorerPage() {
     setKeys((prev) => [createdRecord, ...prev]);
     setActiveDrawerKey(createdRecord);
     setIsDrawerOpen(true);
+
+    // Call REST endpoint
+    fetch("http://localhost:8080/api/keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key: newKey.key,
+        key_type: newKey.type,
+        ttl_seconds: newKey.ttlSeconds,
+        value: newKey.value,
+      }),
+    }).catch(() => {});
   };
 
   const handleUpdateValue = (keyName: string, newValue: string, newTtl: number | null) => {
@@ -170,10 +216,25 @@ export default function ExplorerPage() {
         return k;
       })
     );
+
+    // Call REST endpoint
+    fetch(`http://localhost:8080/api/keys/${encodeURIComponent(keyName)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        value: newValue,
+        ttl_seconds: newTtl,
+      }),
+    }).catch(() => {});
   };
 
   const handleDeleteKey = (keyName: string) => {
     setKeys((prev) => prev.filter((k) => k.key !== keyName));
+
+    // Call REST endpoint
+    fetch(`http://localhost:8080/api/keys/${encodeURIComponent(keyName)}`, {
+      method: "DELETE",
+    }).catch(() => {});
   };
 
   return (

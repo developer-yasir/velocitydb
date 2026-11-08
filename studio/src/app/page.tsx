@@ -57,78 +57,158 @@ export default function PulseDashboardPage() {
   const [activeConnections, setActiveConnections] = useState(10482);
   const [evictionCount, setEvictionCount] = useState(43740);
 
-  // Real-time Live Telemetry Loop (Every 1000ms / 1 second)
+  // Real-time Live Telemetry Loop (WebSocket with automatic graceful fallback)
   useEffect(() => {
     if (isPaused) return;
 
-    const interval = setInterval(() => {
+    let ws: WebSocket | null = null;
+    let fallbackInterval: NodeJS.Timeout | null = null;
+    let isConnected = false;
+
+    const startFallback = () => {
+      if (fallbackInterval) return;
+      fallbackInterval = setInterval(() => {
+        const now = new Date();
+        const timeStr = now.toTimeString().split(" ")[0];
+
+        // 1. Next smooth RPS point (oscillating between 1.58M and 1.68M with spikes)
+        const nextRps = Math.floor(1610000 + Math.random() * 70000);
+        const nextLatency = parseFloat((17.4 + Math.random() * 1.5).toFixed(1));
+        setCurrentLatency(nextLatency);
+
+        // Increment evictions synchronously
+        setEvictionCount((prev) => prev + Math.floor(Math.random() * 8));
+
+        // Fluctuating active sockets
+        setActiveConnections((prev) => prev + Math.floor((Math.random() - 0.5) * 12));
+
+        // Update sliding window of RPS data
+        setRpsData((prev) => [
+          ...prev.slice(1),
+          {
+            timestamp: timeStr,
+            rps: nextRps,
+            latencyMicros: nextLatency,
+            batchCommits: Math.floor(nextRps / 50),
+          },
+        ]);
+
+        // 2. Simulate 16 CPU core loads dynamically (ranging between 10% and 90%)
+        setCores((prevCores) =>
+          prevCores.map((c) => {
+            const delta = Math.floor((Math.random() - 0.5) * 16);
+            const newLoad = Math.max(15, Math.min(92, c.cpuLoad + delta));
+            return {
+              ...c,
+              cpuLoad: newLoad,
+              opsSec: Math.floor((newLoad / 100) * 115000),
+              sqeDepth: Math.floor((newLoad / 100) * 64),
+            };
+          })
+        );
+      }, 1000);
+    };
+
+    // Attempt connecting to embedded Rust axum WebSocket telemetry endpoint
+    try {
+      ws = new WebSocket("ws://localhost:8080/ws/telemetry");
+
+      ws.onopen = () => {
+        isConnected = true;
+        if (fallbackInterval) {
+          clearInterval(fallbackInterval);
+          fallbackInterval = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const t = JSON.parse(event.data);
+          if (t && typeof t.rps === "number") {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(" ")[0];
+
+            setCurrentLatency(parseFloat((t.p99_latency_micros || 17.8).toFixed(1)));
+            setActiveConnections(t.active_connections || 10482);
+            setEvictionCount(t.eviction_count || 43740);
+
+            setRpsData((prev) => [
+              ...prev.slice(1),
+              {
+                timestamp: timeStr,
+                rps: t.rps,
+                latencyMicros: t.p99_latency_micros || 18.0,
+                batchCommits: Math.floor(t.rps / 50),
+              },
+            ]);
+
+            if (Array.isArray(t.cpu_cores)) {
+              setCores(
+                t.cpu_cores.map((c: { core_id: number; load_percent: number; ops_sec: number; sqe_depth: number; keys_count: number }) => ({
+                  coreId: c.core_id,
+                  cpuLoad: Math.round(c.load_percent),
+                  opsSec: c.ops_sec,
+                  sqeDepth: c.sqe_depth,
+                  keysCount: c.keys_count,
+                  isLeader: c.core_id === 0,
+                }))
+              );
+            }
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+      };
+
+      ws.onerror = () => {
+        if (!isConnected) {
+          startFallback();
+        }
+      };
+
+      ws.onclose = () => {
+        isConnected = false;
+        startFallback();
+      };
+    } catch {
+      startFallback();
+    }
+
+    // Always start fallback initially until WebSocket message confirms active stream
+    startFallback();
+
+    // Wire commands cycle ticker
+    const wireInterval = setInterval(() => {
       const now = new Date();
       const timeStr = now.toTimeString().split(" ")[0];
+      const sampleKeys = [
+        { cmd: "SET", key: `{tenant:${Math.floor(Math.random() * 500)}}auth:session`, slot: 512, status: "EXECUTED" as const, node: "node-01:6379" },
+        { cmd: "GET", key: `{user:${Math.floor(Math.random() * 10000)}}profile`, slot: 9410, status: "-MOVED REDIRECT" as const, node: "node-02:6380" },
+        { cmd: "XADD", key: `{stream:iot}sensor_readings`, slot: 1102, status: "STREAMED" as const, node: "node-01:6379" },
+        { cmd: "SETBIT", key: `{flags:global}feature_gate`, slot: 14920, status: "-MOVED REDIRECT" as const, node: "node-03:6381" },
+      ];
+      const picked = sampleKeys[Math.floor(Math.random() * sampleKeys.length)];
 
-      // 1. Next smooth RPS point (oscillating between 1.58M and 1.68M with spikes)
-      const nextRps = Math.floor(1610000 + Math.random() * 70000);
-      const nextLatency = parseFloat((17.4 + Math.random() * 1.5).toFixed(1));
-      setCurrentLatency(nextLatency);
-
-      // Increment evictions synchronously
-      setEvictionCount((prev) => prev + Math.floor(Math.random() * 8));
-
-      // Fluctuating active sockets
-      setActiveConnections((prev) => prev + Math.floor((Math.random() - 0.5) * 12));
-
-      // Update sliding window of RPS data
-      setRpsData((prev) => [
-        ...prev.slice(1),
+      setWireCommands((prev) => [
         {
+          id: `w-${Date.now()}`,
           timestamp: timeStr,
-          rps: nextRps,
-          latencyMicros: nextLatency,
-          batchCommits: Math.floor(nextRps / 50),
+          cmd: picked.cmd,
+          key: picked.key,
+          slot: picked.slot,
+          node: picked.node,
+          latencyMicros: parseFloat((1.2 + Math.random() * 4.5).toFixed(1)),
+          status: picked.status,
         },
+        ...prev.slice(0, 4),
       ]);
+    }, 1500);
 
-      // 2. Simulate 16 CPU core loads dynamically (ranging between 10% and 90%)
-      setCores((prevCores) =>
-        prevCores.map((c) => {
-          // Dynamic smooth load delta between -8% and +8%
-          const delta = Math.floor((Math.random() - 0.5) * 16);
-          let newLoad = Math.max(15, Math.min(92, c.cpuLoad + delta));
-          return {
-            ...c,
-            cpuLoad: newLoad,
-            opsSec: Math.floor((newLoad / 100) * 115000),
-            sqeDepth: Math.floor((newLoad / 100) * 64),
-          };
-        })
-      );
-
-      // 3. Occasionally cycle wire commands table
-      if (Math.random() > 0.4) {
-        const sampleKeys = [
-          { cmd: "SET", key: `{tenant:${Math.floor(Math.random() * 500)}}auth:session`, slot: 512, status: "EXECUTED" as const, node: "node-01:6379" },
-          { cmd: "GET", key: `{user:${Math.floor(Math.random() * 10000)}}profile`, slot: 9410, status: "-MOVED REDIRECT" as const, node: "node-02:6380" },
-          { cmd: "XADD", key: `{stream:iot}sensor_readings`, slot: 1102, status: "STREAMED" as const, node: "node-01:6379" },
-          { cmd: "SETBIT", key: `{flags:global}feature_gate`, slot: 14920, status: "-MOVED REDIRECT" as const, node: "node-03:6381" },
-        ];
-        const picked = sampleKeys[Math.floor(Math.random() * sampleKeys.length)];
-
-        setWireCommands((prev) => [
-          {
-            id: `w-${Date.now()}`,
-            timestamp: timeStr,
-            cmd: picked.cmd,
-            key: picked.key,
-            slot: picked.slot,
-            node: picked.node,
-            latencyMicros: parseFloat((1.2 + Math.random() * 4.5).toFixed(1)),
-            status: picked.status,
-          },
-          ...prev.slice(0, 4),
-        ]);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
+    return () => {
+      if (ws) ws.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+      clearInterval(wireInterval);
+    };
   }, [isPaused]);
 
   return (

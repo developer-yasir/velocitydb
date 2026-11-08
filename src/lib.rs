@@ -8,3 +8,4 @@ pub mod parser;
 pub mod pubsub;
 pub mod replication;
 pub mod security;
+pub mod studio_api;

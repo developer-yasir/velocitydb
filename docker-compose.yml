@@ -19,6 +19,7 @@ services:
     ports:
       - "6379:6379"   # Client RESP Protocol
       - "16379:16379" # Cluster Gossip Bus
+      - "8080:8080"   # Studio HTTP & WebSocket Management API
     ulimits:
       memlock:
         soft: -1

@@ -18,8 +18,16 @@ mimalloc = "0.1"
 
 # Async I/O extension traits (AsyncReadExt, AsyncWriteExt)
 futures-lite = "1.13"
+futures-util = "0.3"
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
 rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
+
+# Embedded Studio Management HTTP & WebSocket Engine
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros", "sync", "time"] }
+axum = { version = "0.7", features = ["ws"] }
+tower-http = { version = "0.5", features = ["cors"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Thread-per-core io_uring asynchronous runtime (Linux kernel >= 5.8)

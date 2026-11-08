@@ -31,8 +31,8 @@ WORKDIR /opt/velocitydb
 # Copy binary from builder
 COPY --from=builder /usr/src/velocitydb/target/release/velocitydb /opt/velocitydb/velocitydb
 
-# Client Port (6379) and Cluster Bus Port (16379)
-EXPOSE 6379 16379
+# Client Port (6379), Cluster Bus Port (16379), and Studio HTTP/WebSocket Port (8080)
+EXPOSE 6379 16379 8080
 
 ENTRYPOINT ["/opt/velocitydb/velocitydb"]
 CMD ["0.0.0.0:6379"]
