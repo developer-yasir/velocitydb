@@ -23,6 +23,7 @@
 [![Throughput](https://img.shields.io/badge/Throughput-24.57M_Ops%2FSec-brightgreen.svg?style=for-the-badge)](#live-terminal-proof-enterprise-certification-suite)
 [![Latency](https://img.shields.io/badge/P99_Latency-18.1_µs-blue.svg?style=for-the-badge)](#live-terminal-proof-enterprise-certification-suite)
 [![Protocol](https://img.shields.io/badge/Protocol-RESP2_%2F_RESP3_Redis_Compatible-green.svg?style=for-the-badge&logo=redis)](https://redis.io/docs/reference/protocol-spec/)
+[![Studio](https://img.shields.io/badge/GUI-VelocityDB_Studio_Next.js-cyan.svg?style=for-the-badge&logo=nextdotjs)](#-velocitydb-studio-web-admin-cockpit)
 [![License](https://img.shields.io/badge/License-AGPL_v3_%2F_Commercial-yellow.svg?style=for-the-badge)](LICENSE)
 
 </div>
@@ -349,6 +350,25 @@ redis-cli -p 6381 CLUSTER ADDSLOTS $(seq 10923 16383)
 
 # 4. Check Cluster Status
 redis-cli -p 6379 CLUSTER INFO
+```
+
+---
+
+## 🖥️ VelocityDB Studio (Web Admin Cockpit)
+
+A locally-hosted, hacker-style dark mode web GUI built with **Next.js (App Router)**, **Tailwind CSS**, and **Recharts**.
+
+* 📊 **Real-Time Telemetry:** Live RPS speedometer, tail latency P99 tracking ($18.1\text{ µs}$), and intrusive $O(1)$ LRU eviction counters.
+* 🌐 **16,384 Hash Slot Topology:** Visual balance and `-MOVED` redirection monitoring across 3+ cluster nodes.
+* 💻 **Interactive RESP Console:** Direct socket communication via raw commands with live latency badges.
+* 🗄️ **Zero-Copy Data Explorer:** Inspect and filter Strings, Hashes, Lists, Sorted Sets, Streams, and SIMD Bitmaps.
+* ⚡ **Core Affinity Matrix:** Visualize per-core CPU utilization and `io_uring` SQE/CQE ring depths across all 64 cores.
+
+```bash
+# Launch VelocityDB Studio locally on http://localhost:3000
+cd studio
+npm install
+npm run dev
 ```
 
 ---

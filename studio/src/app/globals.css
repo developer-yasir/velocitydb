@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #080a0f;
+  --foreground: #f3f4f6;
+  --card-bg: rgba(15, 19, 28, 0.7);
+  --card-border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  selection-background-color: #00f2fe;
+  selection-color: #000000;
+}
+
+/* Custom Sleek Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090c12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e2638;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2b374f;
+}
+
+/* Glassmorphism card utility */
+.glass-panel {
+  background: rgba(13, 17, 24, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-panel-subtle {
+  background: rgba(18, 24, 34, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card-interactive {
+  background: rgba(15, 19, 28, 0.7);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-interactive:hover {
+  background: rgba(20, 26, 38, 0.85);
+  border-color: rgba(0, 242, 254, 0.25);
+  box-shadow: 0 0 20px -5px rgba(0, 242, 254, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Hacker-grid subtle background */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Glowing text effects */
+.text-glow-cyan {
+  text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
+}
+
+.text-glow-orange {
+  text-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+}
+
+.text-glow-green {
+  text-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
