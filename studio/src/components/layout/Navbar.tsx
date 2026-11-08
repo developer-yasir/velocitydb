@@ -59,7 +59,13 @@ const CLUSTER_NODES: VelocityNode[] = [
 export function Navbar() {
   const [selectedNode, setSelectedNode] = useState<VelocityNode>(CLUSTER_NODES[0]);
   const [isNodeDropdownOpen, setIsNodeDropdownOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { telemetry, connectionState } = useVelocityTelemetry();
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   const isConnected = connectionState === "connected";
   const p50Str = telemetry ? `${telemetry.p50_latency_micros.toFixed(1)} µs` : "14.2 µs";
