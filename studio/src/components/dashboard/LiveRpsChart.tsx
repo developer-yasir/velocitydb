@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import {
   AreaChart,
   Area,
@@ -25,21 +25,28 @@ interface LiveRpsChartProps {
   onTogglePause: () => void;
 }
 
-export function LiveRpsChart({
+export const LiveRpsChart = memo(function LiveRpsChart({
   data,
   isPaused,
   onTogglePause,
 }: LiveRpsChartProps) {
   const [timeWindow, setTimeWindow] = useState<"10s" | "30s" | "1m" | "5m">("30s");
 
-  const currentPoint = data[data.length - 1] || {
-    rps: 1642890,
-    latencyMicros: 18.1,
-    batchCommits: 32800,
-  };
+  const currentPoint =
+    data.length > 0
+      ? data[data.length - 1]
+      : {
+          timestamp: "--:--:--",
+          rps: 0,
+          latencyMicros: 0,
+          batchCommits: 0,
+        };
 
-  // Peak RPS calculation across the visible window
-  const peakRps = Math.max(...data.map((d) => d.rps), 1685000);
+  // Peak RPS calculation strictly across the received hardware frames
+  const peakRps =
+    data.length > 0
+      ? Math.max(...data.map((d) => d.rps))
+      : currentPoint.rps;
 
   return (
     <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-4 relative overflow-hidden">
@@ -165,7 +172,7 @@ export function LiveRpsChart({
 
             <YAxis
               stroke="#374151"
-              domain={[1_400_000, 1_800_000]}
+              domain={[0, (dataMax: number) => Math.max(Math.ceil(dataMax * 1.1), 1_800_000)]}
               tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
               tickLine={{ stroke: "#374151" }}
               tickFormatter={(val) => `${(val / 1_000_000).toFixed(2)}M`}
@@ -225,7 +232,7 @@ export function LiveRpsChart({
             <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500 shadow-[0_0_8px_#00f2fe]" />
           </span>
           <span className="text-zinc-400">
-            Streaming socket telemetry at <strong className="text-cyan-300">1000ms polling rate</strong>
+            Streaming socket telemetry via zero-copy io_uring (500ms real broadcast)
           </span>
         </div>
 
@@ -236,4 +243,4 @@ export function LiveRpsChart({
       </div>
     </div>
   );
-}
+});

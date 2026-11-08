@@ -1,30 +1,43 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import {
   HardDrive,
   Gauge,
   Users,
   ArrowUpRight,
-  ShieldCheck,
   Zap,
   Activity,
   Layers,
 } from "lucide-react";
 
-interface MetricCardsProps {
+export interface MetricCardsProps {
   currentRps: number;
   currentLatency: number;
+  p50Latency?: number;
   activeConnections: number;
   evictionCount: number;
+  usedMemoryBytes?: number;
+  maxMemoryBytes?: number;
 }
 
-export function MetricCards({
-  currentRps,
+export const MetricCards = memo(function MetricCards({
+  currentRps: _currentRps,
   currentLatency,
+  p50Latency = 4.5,
   activeConnections,
   evictionCount,
+  usedMemoryBytes = 2 * 1024 * 1024,
+  maxMemoryBytes = 2 * 1024 * 1024,
 }: MetricCardsProps) {
+  const usedMB = (usedMemoryBytes / (1024 * 1024)).toFixed(2);
+  const maxMB = (maxMemoryBytes / (1024 * 1024)).toFixed(2);
+  const memoryPercent = maxMemoryBytes > 0
+    ? Math.min(100, Math.max(2, (usedMemoryBytes / maxMemoryBytes) * 100))
+    : 99.8;
+
+  const latencyPercent = Math.min(100, Math.max(5, (currentLatency / 25) * 100));
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {/* CARD 1: Total RAM Used (LRU) */}
@@ -45,16 +58,16 @@ export function MetricCards({
 
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-black font-mono text-white tracking-tight">
-            2.00 MB
+            {usedMB} MB
           </span>
-          <span className="text-xs font-mono text-zinc-400">/ 2.00 MB Limit</span>
+          <span className="text-xs font-mono text-zinc-400">/ {maxMB} MB Limit</span>
         </div>
 
         {/* Dynamic Progress Bar */}
         <div className="w-full bg-white/[0.07] h-2 rounded-full mt-4 overflow-hidden relative">
           <div
             className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-400 shadow-[0_0_12px_rgba(249,115,22,0.6)] transition-all duration-500"
-            style={{ width: "99.8%" }}
+            style={{ width: `${memoryPercent}%` }}
           />
         </div>
 
@@ -105,22 +118,22 @@ export function MetricCards({
         <div className="w-full bg-white/[0.07] h-2 rounded-full mt-4 overflow-hidden relative">
           <div
             className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_12px_rgba(0,242,254,0.6)] transition-all duration-300"
-            style={{ width: `${Math.min(100, (currentLatency / 25) * 100)}%` }}
+            style={{ width: `${latencyPercent}%` }}
           />
         </div>
 
         <div className="grid grid-cols-3 gap-1 pt-4 mt-2 border-t border-white/[0.06] text-center font-mono">
           <div>
             <span className="text-[9px] text-zinc-400 uppercase block">P50 Median</span>
-            <span className="text-emerald-400 font-bold text-xs">4.5 µs</span>
+            <span className="text-emerald-400 font-bold text-xs">{p50Latency.toFixed(1)} µs</span>
           </div>
           <div>
             <span className="text-[9px] text-zinc-400 uppercase block">P90 Target</span>
-            <span className="text-cyan-400 font-bold text-xs">9.2 µs</span>
+            <span className="text-cyan-400 font-bold text-xs">{((p50Latency + currentLatency) / 2).toFixed(1)} µs</span>
           </div>
           <div>
             <span className="text-[9px] text-zinc-400 uppercase block">P99 SLA</span>
-            <span className="text-white font-bold text-xs">18.1 µs</span>
+            <span className="text-white font-bold text-xs">{currentLatency.toFixed(1)} µs</span>
           </div>
         </div>
 
@@ -154,7 +167,7 @@ export function MetricCards({
         <div className="w-full bg-white/[0.07] h-2 rounded-full mt-4 overflow-hidden relative">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_12px_rgba(16,185,129,0.5)] transition-all duration-300"
-            style={{ width: "84%" }}
+            style={{ width: `${Math.min(100, Math.max(10, (activeConnections / 15000) * 100))}%` }}
           />
         </div>
 
@@ -177,6 +190,9 @@ export function MetricCards({
 
         <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
       </div>
+    </div>
+  );
+});
     </div>
   );
 }

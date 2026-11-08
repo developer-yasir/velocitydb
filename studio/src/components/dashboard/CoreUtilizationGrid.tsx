@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { Cpu, ShieldCheck, Zap, Layers, Activity } from "lucide-react";
 
 export interface CoreTelemetry {
   coreId: number;
-  cpuLoad: number; // 10% to 90%
+  cpuLoad: number; // 0% to 100%
   opsSec: number;
   sqeDepth: number;
   keysCount: number;
@@ -16,10 +16,26 @@ interface CoreUtilizationGridProps {
   cores: CoreTelemetry[];
 }
 
-export function CoreUtilizationGrid({ cores }: CoreUtilizationGridProps) {
+export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
+  cores,
+}: CoreUtilizationGridProps) {
   const [selectedCoreId, setSelectedCoreId] = useState<number>(0);
 
-  const selectedCore = cores.find((c) => c.coreId === selectedCoreId) || cores[0];
+  // Stable 16-shard fallback to eliminate layout shift during initial socket handshake
+  const displayCores =
+    cores && cores.length >= 16
+      ? cores
+      : Array.from({ length: 16 }, (_, i) => ({
+          coreId: i,
+          cpuLoad: 0,
+          opsSec: 0,
+          sqeDepth: 0,
+          keysCount: 0,
+          isLeader: i === 0,
+        }));
+
+  const selectedCore =
+    displayCores.find((c) => c.coreId === selectedCoreId) || displayCores[0];
 
   return (
     <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-6 relative overflow-hidden">
@@ -51,7 +67,7 @@ export function CoreUtilizationGrid({ cores }: CoreUtilizationGridProps) {
 
       {/* 16-Core Matrix (Sleek Circular Gauges + Progress Bars) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        {cores.map((core) => {
+        {displayCores.map((core) => {
           const isSelected = selectedCoreId === core.coreId;
 
           // Color theme based on CPU utilization load
@@ -194,4 +210,4 @@ export function CoreUtilizationGrid({ cores }: CoreUtilizationGridProps) {
       </div>
     </div>
   );
-}
+});

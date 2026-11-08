@@ -58,3 +58,33 @@ export interface KeyRecord {
   sizeBytes: number;
   lastAccessed: string;
 }
+
+export interface CoreTelemetryPayload {
+  core_id: number;
+  load_percent: number;
+  ops_sec: number;
+  sqe_depth: number;
+  cqe_pending: number;
+  keys_count: number;
+}
+
+export interface TelemetryPayload {
+  timestamp_ms: number;
+  rps: number;
+  p50_latency_micros: number;
+  p99_latency_micros: number;
+  cluster_state: string;
+  cluster_slots_assigned: number;
+  used_memory_bytes: number;
+  max_memory_bytes: number;
+  eviction_count: number;
+  active_connections: number;
+  cpu_cores: CoreTelemetryPayload[];
+}
+
+export type TelemetryConnectionState =
+  | "connected"
+  | "connecting"
+  | "reconnecting"
+  | "disconnected"
+  | "error";
