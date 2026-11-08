@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ==============================================================================
 # VelocityDB Enterprise Orchestration Suite
 # - Default Stack: docker compose up -d (Engine on :6379 + Studio GUI on :3000)
