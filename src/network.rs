@@ -31,7 +31,14 @@ use rustls::ServerConfig;
 use std::rc::Rc;
 #[cfg(target_os = "linux")]
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
+
+/// Global real-time throughput counter shared between io_uring data plane and management HTTP plane.
+pub static GLOBAL_TOTAL_OPS: AtomicU64 = AtomicU64::new(0);
+
+/// Global active TCP client connection counter.
+pub static GLOBAL_ACTIVE_CONNS: AtomicUsize = AtomicUsize::new(0);
 
 /// Default Redis port for VelocityDB.
 pub const DEFAULT_PORT: u16 = 6379;
@@ -1485,6 +1492,15 @@ pub async fn execute_command_with_aof<W: AsyncWriteExt + Unpin>(
     let dummy_acl = AclEngine::new();
     let mut conn_acl = ConnectionAcl::default();
     let mut txn_state = TransactionState::new();
+
+        GLOBAL_ACTIVE_CONNS.fetch_add(1, Ordering::Relaxed);
+        struct ConnGuard;
+        impl Drop for ConnGuard {
+            fn drop(&mut self) {
+                GLOBAL_ACTIVE_CONNS.fetch_sub(1, Ordering::Relaxed);
+            }
+        }
+        let _guard = ConnGuard;
     let (repl_tx, _repl_rx) = replication::replica_channel(16);
     execute_command_with_repl(
         frame,
@@ -1705,6 +1721,9 @@ mod linux {
             // Flush all batched responses in a SINGLE socket write syscall
             if commands_in_batch > 0 || batch_writer.pending_bytes() > 0 {
                 batch_writer.flush_all().await?;
+                if commands_in_batch > 0 {
+                    GLOBAL_TOTAL_OPS.fetch_add(commands_in_batch as u64, Ordering::Relaxed);
+                }
             }
 
             let start = pipeline.consumed();
