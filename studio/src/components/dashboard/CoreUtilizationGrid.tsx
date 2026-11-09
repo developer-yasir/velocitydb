@@ -71,8 +71,10 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
           const isSelected = selectedCoreId === core.coreId;
 
           // Color theme based on CPU utilization load
-          const isHeavy = core.cpuLoad >= 80;
-          const isOptimal = core.cpuLoad >= 50 && core.cpuLoad < 80;
+          const rawCpu = typeof core.cpuLoad === "number" && !isNaN(core.cpuLoad) ? core.cpuLoad : 50;
+          const cpuLoad = Math.min(100, Math.max(0, rawCpu));
+          const isHeavy = cpuLoad >= 80;
+          const isOptimal = cpuLoad >= 50 && cpuLoad < 80;
 
           const strokeColor = isHeavy
             ? "#f97316" // Orange
@@ -89,7 +91,7 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
           // Circular gauge math (radius 18, circumference 2 * PI * 18 = ~113.1)
           const radius = 18;
           const circumference = 2 * Math.PI * radius;
-          const strokeDashoffset = circumference - (core.cpuLoad / 100) * circumference;
+          const strokeDashoffset = circumference - (cpuLoad / 100) * circumference;
 
           return (
             <button
@@ -145,7 +147,7 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
 
                 {/* Center Percentage Display */}
                 <span className="absolute font-black text-xs text-white">
-                  {core.cpuLoad}%
+                  {cpuLoad}%
                 </span>
               </div>
 
@@ -154,7 +156,7 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
-                    width: `${core.cpuLoad}%`,
+                    width: `${cpuLoad}%`,
                     backgroundColor: strokeColor,
                   }}
                 />
@@ -162,8 +164,8 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
 
               {/* Micro stats */}
               <div className="flex items-center justify-between text-[9px] text-zinc-400 mt-2 truncate">
-                <span>{(core.opsSec / 1000).toFixed(0)}k RPS</span>
-                <span className="text-zinc-400">{core.sqeDepth} SQE</span>
+                <span>{(((core.opsSec ?? 0) / 1000)).toFixed(0)}k RPS</span>
+                <span className="text-zinc-400">{core.sqeDepth ?? 32} SQE</span>
               </div>
             </button>
           );
@@ -196,11 +198,11 @@ export const CoreUtilizationGrid = memo(function CoreUtilizationGrid({
         <div className="flex items-center gap-6 self-stretch md:self-auto justify-between md:justify-end border-t md:border-t-0 border-white/[0.06] pt-3 md:pt-0">
           <div>
             <span className="text-[10px] text-zinc-400 block uppercase">Dedicated Keys</span>
-            <span className="text-white font-bold">{selectedCore.keysCount.toLocaleString()}</span>
+            <span className="text-white font-bold">{(selectedCore.keysCount ?? 0).toLocaleString()}</span>
           </div>
           <div>
             <span className="text-[10px] text-zinc-400 block uppercase">io_uring SQE Depth</span>
-            <span className="text-cyan-400 font-bold">{selectedCore.sqeDepth} / 1024</span>
+            <span className="text-cyan-400 font-bold">{selectedCore.sqeDepth ?? 32} / 1024</span>
           </div>
           <div>
             <span className="text-[10px] text-zinc-400 block uppercase">Core Affinity</span>

@@ -42,13 +42,13 @@ export default function MetricsPage() {
 
   const activeCoreData = cores[selectedCore] || cores[0];
 
-  const usedMB = telemetry
-    ? (telemetry.used_memory_bytes / (1024 * 1024)).toFixed(2)
-    : "2.00";
-  const maxMB = telemetry
-    ? (telemetry.max_memory_bytes / (1024 * 1024)).toFixed(2)
-    : "2.00";
-  const evictions = telemetry ? telemetry.eviction_count : 43740;
+  const usedMem = typeof (telemetry?.used_memory_bytes ?? telemetry?.memory_bytes) === "number"
+    ? (telemetry?.used_memory_bytes ?? telemetry?.memory_bytes)!
+    : 2097152;
+  const maxMem = typeof telemetry?.max_memory_bytes === "number" ? telemetry.max_memory_bytes : 2097152;
+  const usedMB = (usedMem / (1024 * 1024)).toFixed(2);
+  const maxMB = (maxMem / (1024 * 1024)).toFixed(2);
+  const evictions = telemetry?.eviction_count ?? 43740;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">

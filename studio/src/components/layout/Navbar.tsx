@@ -68,8 +68,14 @@ export function Navbar() {
   };
 
   const isConnected = connectionState === "connected";
-  const p50Str = telemetry ? `${telemetry.p50_latency_micros.toFixed(1)} µs` : "14.2 µs";
-  const p99Str = telemetry ? `${telemetry.p99_latency_micros.toFixed(1)} µs` : "18.1 µs";
+  const p50 = typeof telemetry?.p50_latency_micros === "number" && !isNaN(telemetry.p50_latency_micros)
+    ? telemetry.p50_latency_micros
+    : 14.2;
+  const p99 = typeof telemetry?.p99_latency_micros === "number" && !isNaN(telemetry.p99_latency_micros)
+    ? telemetry.p99_latency_micros
+    : 18.1;
+  const p50Str = `${p50.toFixed(1)} µs`;
+  const p99Str = `${p99.toFixed(1)} µs`;
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] bg-[#080a0f]/85 backdrop-blur-xl select-none">

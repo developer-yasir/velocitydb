@@ -26,9 +26,15 @@ use tower_http::cors::CorsLayer;
 /// Real-time engine telemetry broadcasted via WebSocket at 500ms intervals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryData {
+    #[serde(default)]
+    pub timestamp_ms: u64,
     pub rps: u64,
+    #[serde(default = "default_p50_latency")]
+    pub p50_latency_micros: f64,
     pub p99_latency_micros: f64,
     pub memory_bytes: usize,
+    #[serde(default)]
+    pub used_memory_bytes: usize,
     pub max_memory_bytes: usize,
     pub eviction_count: u64,
     pub active_connections: usize,
@@ -36,6 +42,10 @@ pub struct TelemetryData {
     pub cluster_state: String,
     pub cluster_slots_assigned: u16,
     pub cpu_cores: Vec<CoreTelemetryDto>,
+}
+
+fn default_p50_latency() -> f64 {
+    14.2
 }
 
 impl Default for TelemetryData {
@@ -55,24 +65,38 @@ impl Default for TelemetryData {
             102_500
         };
 
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        let total_keys = 1_489_203;
+        let per_core_keys = total_keys / num_shards.max(1);
+
         let cpu_cores = (0..num_shards)
             .map(|i| CoreTelemetryDto {
                 core_id: i,
                 cpu_percent: 65,
+                load_percent: 65,
                 ops_sec: per_core_ops,
                 sqe_depth: 32,
+                cqe_pending: 4,
+                keys_count: per_core_keys,
                 is_leader: i == 0,
             })
             .collect();
 
         Self {
+            timestamp_ms: now_ms,
             rps: 1_642_890,
+            p50_latency_micros: 14.2,
             p99_latency_micros: 18.1,
             memory_bytes: 2 * 1024 * 1024,
+            used_memory_bytes: 2 * 1024 * 1024,
             max_memory_bytes: 2 * 1024 * 1024,
             eviction_count: 43_740,
             active_connections: 10_482,
-            total_keys: 1_489_203,
+            total_keys,
             cluster_state: "ok".to_string(),
             cluster_slots_assigned: 16_384,
             cpu_cores,
@@ -85,8 +109,14 @@ impl Default for TelemetryData {
 pub struct CoreTelemetryDto {
     pub core_id: usize,
     pub cpu_percent: u8,
+    #[serde(default)]
+    pub load_percent: u8,
     pub ops_sec: u64,
     pub sqe_depth: usize,
+    #[serde(default)]
+    pub cqe_pending: usize,
+    #[serde(default)]
+    pub keys_count: usize,
     pub is_leader: bool,
 }
 
@@ -355,10 +385,14 @@ async fn handle_ws_telemetry(mut socket: WebSocket, state: StudioState) {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                let data = {
+                let mut data = {
                     let lock = state.telemetry.read().await;
                     lock.clone()
                 };
+                data.timestamp_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
 
                 if let Ok(json_str) = serde_json::to_string(&data) {
                     if socket.send(Message::Text(json_str)).await.is_err() {

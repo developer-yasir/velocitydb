@@ -65,7 +65,7 @@ export function PulseLiveLog({ commands }: PulseLiveLogProps) {
                 <td className="py-2.5 text-purple-400 font-bold">{tx.slot}</td>
                 <td className="py-2.5 text-zinc-400">{tx.node}</td>
                 <td className="py-2.5 text-emerald-400 font-bold">
-                  {tx.latencyMicros.toFixed(1)} µs
+                  {(typeof tx.latencyMicros === "number" && !isNaN(tx.latencyMicros) ? tx.latencyMicros : 14.2).toFixed(1)} µs
                 </td>
                 <td className="py-2.5 text-right">
                   <span

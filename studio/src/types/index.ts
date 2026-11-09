@@ -79,24 +79,28 @@ export interface IApiError {
 
 export interface CoreTelemetryPayload {
   core_id: number;
-  load_percent: number;
+  cpu_percent?: number;
+  load_percent?: number;
   ops_sec: number;
   sqe_depth: number;
-  cqe_pending: number;
-  keys_count: number;
+  cqe_pending?: number;
+  keys_count?: number;
+  is_leader?: boolean;
 }
 
 export interface TelemetryPayload {
-  timestamp_ms: number;
+  timestamp_ms?: number;
   rps: number;
-  p50_latency_micros: number;
-  p99_latency_micros: number;
-  cluster_state: string;
-  cluster_slots_assigned: number;
-  used_memory_bytes: number;
-  max_memory_bytes: number;
-  eviction_count: number;
-  active_connections: number;
+  p50_latency_micros?: number;
+  p99_latency_micros?: number;
+  cluster_state?: string;
+  cluster_slots_assigned?: number;
+  memory_bytes?: number;
+  used_memory_bytes?: number;
+  max_memory_bytes?: number;
+  eviction_count?: number;
+  active_connections?: number;
+  total_keys?: number;
   cpu_cores: CoreTelemetryPayload[];
 }
 

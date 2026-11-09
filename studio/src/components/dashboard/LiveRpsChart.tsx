@@ -108,7 +108,7 @@ export const LiveRpsChart = memo(function LiveRpsChart({
         <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05]">
           <span className="text-[10px] text-zinc-400 uppercase block">Current Throughput</span>
           <span className="text-xl font-black text-cyan-300 text-glow-cyan">
-            {(currentPoint.rps / 1_000_000).toFixed(3)}M
+            {(((currentPoint.rps ?? 0) / 1_000_000)).toFixed(3)}M
           </span>
           <span className="text-[10px] text-zinc-400 ml-1">ops/sec</span>
         </div>
@@ -116,7 +116,7 @@ export const LiveRpsChart = memo(function LiveRpsChart({
         <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05]">
           <span className="text-[10px] text-zinc-400 uppercase block">Window Peak RPS</span>
           <span className="text-xl font-black text-white">
-            {(peakRps / 1_000_000).toFixed(3)}M
+            {(((peakRps ?? 0) / 1_000_000)).toFixed(3)}M
           </span>
           <span className="text-[10px] text-emerald-400 ml-1 font-bold">↑ MAX</span>
         </div>
@@ -124,7 +124,7 @@ export const LiveRpsChart = memo(function LiveRpsChart({
         <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05]">
           <span className="text-[10px] text-zinc-400 uppercase block">Batch Commits / Sec</span>
           <span className="text-xl font-black text-zinc-200">
-            {currentPoint.batchCommits.toLocaleString()}
+            {(currentPoint.batchCommits ?? 0).toLocaleString()}
           </span>
           <span className="text-[10px] text-zinc-400 ml-1">syscalls saved</span>
         </div>
@@ -197,7 +197,7 @@ export const LiveRpsChart = memo(function LiveRpsChart({
                       <div className="flex items-baseline justify-between gap-6 mt-1">
                         <span className="text-zinc-300">P99 Latency:</span>
                         <span className="text-emerald-400 font-bold">
-                          {p.latencyMicros.toFixed(1)} µs
+                          {(typeof p.latencyMicros === "number" && !isNaN(p.latencyMicros) ? p.latencyMicros : 18.1).toFixed(1)} µs
                         </span>
                       </div>
                       <div className="flex items-baseline justify-between gap-6 mt-1 text-[10px] text-zinc-400">

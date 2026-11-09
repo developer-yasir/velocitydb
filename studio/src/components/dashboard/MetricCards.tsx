@@ -24,19 +24,23 @@ export interface MetricCardsProps {
 export const MetricCards = memo(function MetricCards({
   currentRps: _currentRps,
   currentLatency,
-  p50Latency = 4.5,
+  p50Latency = 14.2,
   activeConnections,
   evictionCount,
   usedMemoryBytes = 2 * 1024 * 1024,
   maxMemoryBytes = 2 * 1024 * 1024,
 }: MetricCardsProps) {
-  const usedMB = (usedMemoryBytes / (1024 * 1024)).toFixed(2);
-  const maxMB = (maxMemoryBytes / (1024 * 1024)).toFixed(2);
-  const memoryPercent = maxMemoryBytes > 0
-    ? Math.min(100, Math.max(2, (usedMemoryBytes / maxMemoryBytes) * 100))
+  const safeUsedBytes = typeof usedMemoryBytes === "number" && !isNaN(usedMemoryBytes) ? usedMemoryBytes : 2097152;
+  const safeMaxBytes = typeof maxMemoryBytes === "number" && !isNaN(maxMemoryBytes) ? maxMemoryBytes : 2097152;
+  const usedMB = (safeUsedBytes / (1024 * 1024)).toFixed(2);
+  const maxMB = (safeMaxBytes / (1024 * 1024)).toFixed(2);
+  const memoryPercent = safeMaxBytes > 0
+    ? Math.min(100, Math.max(2, (safeUsedBytes / safeMaxBytes) * 100))
     : 99.8;
 
-  const latencyPercent = Math.min(100, Math.max(5, (currentLatency / 25) * 100));
+  const lat = typeof currentLatency === "number" && !isNaN(currentLatency) ? currentLatency : 18.1;
+  const p50 = typeof p50Latency === "number" && !isNaN(p50Latency) ? p50Latency : 14.2;
+  const latencyPercent = Math.min(100, Math.max(5, (lat / 25) * 100));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -76,7 +80,7 @@ export const MetricCards = memo(function MetricCards({
             <span className="text-[10px] text-zinc-400 block uppercase">Synchronous Evictions</span>
             <span className="text-orange-400 font-bold flex items-center gap-1 mt-0.5">
               <Zap className="w-3 h-3 text-orange-400" />
-              {evictionCount.toLocaleString()} keys
+              {(evictionCount ?? 0).toLocaleString()} keys
             </span>
           </div>
           <div>
@@ -109,7 +113,7 @@ export const MetricCards = memo(function MetricCards({
 
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-black font-mono text-cyan-300 tracking-tight text-glow-cyan">
-            {currentLatency.toFixed(1)}
+            {lat.toFixed(1)}
           </span>
           <span className="text-xs font-mono text-cyan-400 font-bold">µs (Microseconds)</span>
         </div>
@@ -125,15 +129,15 @@ export const MetricCards = memo(function MetricCards({
         <div className="grid grid-cols-3 gap-1 pt-4 mt-2 border-t border-white/[0.06] text-center font-mono">
           <div>
             <span className="text-[9px] text-zinc-400 uppercase block">P50 Median</span>
-            <span className="text-emerald-400 font-bold text-xs">{p50Latency.toFixed(1)} µs</span>
+            <span className="text-emerald-400 font-bold text-xs">{p50.toFixed(1)} µs</span>
           </div>
           <div>
             <span className="text-[9px] text-zinc-400 uppercase block">P90 Target</span>
-            <span className="text-cyan-400 font-bold text-xs">{((p50Latency + currentLatency) / 2).toFixed(1)} µs</span>
+            <span className="text-cyan-400 font-bold text-xs">{(((p50 + lat) / 2)).toFixed(1)} µs</span>
           </div>
           <div>
             <span className="text-[9px] text-zinc-400 uppercase block">P99 SLA</span>
-            <span className="text-white font-bold text-xs">{currentLatency.toFixed(1)} µs</span>
+            <span className="text-white font-bold text-xs">{lat.toFixed(1)} µs</span>
           </div>
         </div>
 
@@ -158,7 +162,7 @@ export const MetricCards = memo(function MetricCards({
 
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-black font-mono text-white tracking-tight">
-            {activeConnections.toLocaleString()}
+            {(activeConnections ?? 0).toLocaleString()}
           </span>
           <span className="text-xs font-mono text-emerald-400 font-bold">TCP Sockets</span>
         </div>

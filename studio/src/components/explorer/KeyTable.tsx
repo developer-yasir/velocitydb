@@ -280,7 +280,7 @@ export function KeyTable({
 
                   {/* TTL */}
                   <td className="py-3 px-4">
-                    {k.ttlSeconds !== null ? (
+                    {typeof k.ttlSeconds === "number" && !isNaN(k.ttlSeconds) ? (
                       <span className="inline-flex items-center gap-1.5 text-amber-300">
                         <Clock className="w-3 h-3 text-amber-400" />
                         <span>{k.ttlSeconds.toLocaleString()}s</span>
