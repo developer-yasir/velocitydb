@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   TelemetryPayload,
+  CoreTelemetryPayload,
   TelemetryConnectionState,
 } from "@/types";
 import { RpsDataPoint } from "@/components/dashboard/LiveRpsChart";
