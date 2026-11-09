@@ -332,45 +332,148 @@ node test-latency.js
 
 ---
 
-## ⚡ 2-Minute Quickstart: Copy & Paste to Run
+## ⚡ Complete Step-by-Step Deployment Guide (AWS EC2 & Docker)
 
-Run the complete **VelocityDB Engine** (Port 6379 & 8080) and **VelocityDB Studio Cockpit** (Port 3000) in under 2 minutes:
+Follow these simple copy-paste steps to launch **VelocityDB Engine** (Port `6379` & `8080`) and **VelocityDB Studio Cockpit** (Port `3000`) in under 2 minutes. Even if you are completely new to Docker or Linux, you can copy each step directly.
 
-### 1. Launch with Docker Compose (Recommended)
+---
+
+### 🛡️ Step 0: Open Required AWS EC2 Ports (Inbound Security Group)
+
+If you are running on **AWS EC2**, make sure to allow incoming traffic on the following ports:
+
+1. Open **AWS Management Console** ➔ Navigate to **EC2** ➔ **Security Groups**.
+2. Select your instance's Security Group ➔ Click **Edit Inbound Rules**.
+3. Add the following rules and click **Save rules**:
+
+| Port | Protocol | Source | Purpose / Description |
+| :--- | :--- | :--- | :--- |
+| **`22`** | TCP | `0.0.0.0/0` (or My IP) | **SSH Terminal Access** to your EC2 instance |
+| **`3000`** | TCP | `0.0.0.0/0` | **VelocityDB Studio Web UI** (Next.js Cockpit Dashboard) |
+| **`8080`** | TCP | `0.0.0.0/0` | **REST Management Engine & WebSocket Telemetry** (`/ws/telemetry`) |
+| **`6379`** | TCP | `0.0.0.0/0` | **VelocityDB Core RESP Database Port** (Redis Clients & Benchmarks) |
+
+> [!TIP]
+> If testing on your local machine (`localhost`), you can skip Step 0 as all local ports are automatically accessible!
+
+---
+
+### 🛠️ Step 1: Install Docker & Git (If not already installed)
+
+Run the command for your operating system:
+
+**For Amazon Linux 2023 (AWS Default):**
 ```bash
-# Clone the repository
-git clone https://github.com/developer-yasir/velocitydb.git
-cd velocitydb
+# Update and install Docker + Git
+sudo dnf update -y && sudo dnf install -y docker git
 
-# Launch Engine + Web Studio in background
-docker compose up -d
+# Start and enable Docker service
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
 
-# Verify Engine Health
-curl -s http://localhost:8080/api/health
+# Install Docker Compose Plugin
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 ```
 
-### 2. Run the High-Performance Benchmark
+**For Ubuntu / Debian:**
 ```bash
-# Blast 1,000,000 pipelined requests to verify local throughput
+sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+*(If Docker is already installed on your machine, skip straight to Step 2!)*
+
+---
+
+### 📦 Step 2: Clone the Repository & Launch with Docker Compose
+
+Copy and run these commands to launch the complete system:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/developer-yasir/velocitydb.git
+
+# 2. Enter the project folder
+cd velocitydb
+
+# 3. Build & start both VelocityDB Engine and Studio UI in background
+docker compose up -d
+```
+
+#### What Just Started:
+* 🟢 **`velocitydb-engine` Container:** Running the ultra-fast Rust `io_uring` database on **Port 6379** (RESP) and **Port 8080** (Management API & WebSockets).
+* 🟢 **`velocitydb-studio` Container:** Running the Next.js 15 Dark-Mode Cockpit on **Port 3000**.
+
+---
+
+### 🩺 Step 3: Verify Everything Is Healthy & Running
+
+Run these quick verification commands:
+
+```bash
+# 1. Check container health status (Both should say "Up")
+docker ps
+
+# 2. Test Engine Health REST API
+curl -s http://localhost:8080/api/health
+# Expected Output:
+# {"status":"ok","version":"1.0.0-enterprise","engine":"io_uring_thread_per_core","client_port":6379,"studio_port":8080}
+
+# 3. Test Database RESP Port via Redis PING
+docker run --rm --network host redis:alpine redis-cli -p 6379 PING
+# Expected Output:
+# +PONG
+```
+
+---
+
+### 🖥️ Step 4: Access VelocityDB Studio Cockpit in Your Browser
+
+Open your browser and navigate to:
+
+* **On Localhost:**  
+  👉 **`http://localhost:3000`**
+* **On AWS EC2 Cloud:**  
+  👉 **`http://<YOUR-EC2-PUBLIC-IP>:3000`** *(Example: `http://54.172.168.90:3000`)*
+
+You will immediately see the live **Pulse Dashboard**, real-time operations counter, hardware gauges, and key explorer!
+
+---
+
+### 🏎️ Step 5: Reproduce the Real Benchmark (Watch Live Surge)
+
+Keep your browser open on the **Studio Dashboard** and run this command in your terminal to see the waveform surge in real time:
+
+#### Option A: Quick 1,000,000 Requests Test (Takes ~2 seconds)
+```bash
 sudo docker run --rm --network host redis:alpine redis-benchmark \
   -h 127.0.0.1 -p 6379 -c 100 -n 1000000 -P 50 -t set,get -q
 ```
 
-### 3. Connect with standard `redis-cli` or any Redis client
+#### Option B: Full 25,000,000 Requests Enterprise Blast
 ```bash
-redis-cli -p 6379 PING
-# +PONG
-
-redis-cli -p 6379 SET welcome "VelocityDB Running"
-# +OK
-
-redis-cli -p 6379 GET welcome
-# "VelocityDB Running"
+sudo docker run --rm --network host redis:alpine redis-benchmark \
+  -h 127.0.0.1 -p 6379 -c 150 -n 25000000 -P 50 -t set -q
 ```
 
-### 4. Open Studio Cockpit in your Browser
-```text
-http://localhost:3000
+---
+
+### 🔧 Handy Docker Commands Cheat-Sheet
+
+```bash
+# View real-time database logs
+docker compose logs -f velocitydb-engine
+
+# View real-time web studio logs
+docker compose logs -f velocitydb-studio
+
+# Restart the entire stack
+docker compose restart
+
+# Stop all VelocityDB containers
+docker compose down
 ```
 
 ---
