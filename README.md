@@ -137,31 +137,7 @@ Multi-threaded alternatives attempt to patch this by adding global mutex locks, 
   * After multiple back-to-back 25-million runs (50+ million requests continuously executed), AWS burstable CPU credit buckets settled into a baseline allocation, sustaining **329,789 ops/sec**.
   * **Key Takeaway:** Even in credit-throttled baseline state, VelocityDB delivers **~330,000 writes/sec** on a micro-tier instance—exceeding standard single-threaded Redis by **4x to 8x** with a fraction of the hardware footprint.
 
----
 
-### 🎙️ Executive Pitch & CTO Voiceover Script
-
-Use this pitch script when demonstrating VelocityDB to Engineering Executives, CTOs, and Cloud Architects:
-
-#### 🎬 Act 1: The Multi-Core Cloud Tax (00:00 - 00:04)
-> **🇺🇸 English:** "Modern cloud servers have 64 to 128 cores, but traditional Redis only uses one. That means 98% of your expensive CPU capacity is completely idle, forcing engineering teams to deploy costly, complex clusters. VelocityDB changes the game entirely."
-> 
-> **🇵🇰 Roman Urdu:** "Aaj kal ke modern AWS servers mein 64 se 128 cores hotay hain, lekin traditional Redis sirf 1 core use karta hai—yani 98% server resources zaya hotay hain aur companies ko bekar mein lakhon rupay cluster management par kharchnay partay hain. VelocityDB is problem ko jarr se khatam karta hai."
-
-#### 🎬 Act 2: Blasting 25 Million Requests on AWS EC2 (00:04 - 00:08)
-> **🇺🇸 English:** "Here is real proof running live on AWS EC2 Amazon Linux 2023. We blast 25 million write requests across 150 concurrent client connections with 50-command pipelining. Watch the live Next.js Studio Cockpit instantly surge to over 641,000 requests per second."
-> 
-> **🇵🇰 Roman Urdu:** "Yeh real AWS EC2 production instance par live proof hai. Humne 150 concurrent connections aur 50-command pipelining ke sath 25 Million (Dhai Crore) requests fire keen. VelocityDB Studio Cockpit par aap live dekh saktay hain throughput 641,000 RPS (chhay lakh iktaalees hazar requests per second) par spike karti hai."
-
-#### 🎬 Act 3: Inside the Kernel: io_uring & Zero Mutex Locks (00:08 - 00:11)
-> **🇺🇸 English:** "Underneath, VelocityDB pins independent asynchronous engines to each CPU core. Using Linux io_uring kernel bypass, network packets are consumed directly from ring buffers with zero syscalls and zero mutex contention. Even under a strict 2 Megabyte RAM limit, our O(1) LRU evicted over 43,000 keys seamlessly without dropping P99 latency below 18.1 microseconds."
-> 
-> **🇵🇰 Roman Urdu:** "Architecture ke andar, VelocityDB Linux io_uring kernel bypass use karta hai jo zero syscalls ke sath ring buffers se direct data process karta hai. Yahan zero mutex locks hain. 2 MB ki strict memory limit ke bawajood O(1) LRU ne 43,000 keys dynamically evict keen bina kisi pipeline pause ke, aur P99 tail latency sirf 18.1 microseconds par barkarar rahi."
-
-#### 🎬 Act 4: The CTO Bottom Line: 80% Infrastructure Cost Reduction (00:11 - 00:14)
-> **🇺🇸 English:** "For any CTO, the financial ROI is clear: VelocityDB lets you consolidate 10 to 20 Redis nodes into a single, high-density instance. You eliminate cluster overhead, slash your AWS ElastiCache bill by up to 80%, and deliver sub-20 microsecond response times at scale."
-> 
-> **🇵🇰 Roman Urdu:** "CTO aur engineering leadership ke liye sab se bara faida cost aur scalability ka hai: Jahan aapko 10 se 20 Redis servers ka cluster sambhalna parta tha, VelocityDB akele aik single machine par woh pura load handle karta hai. Is se AWS cloud bills 70% se 80% tak kam ho jatay hain aur latency microsecond level par rehti hai." 
 
 ---
 
@@ -352,6 +328,49 @@ cargo test --release --test advanced_stress_test -- --nocapture
 
 # 4. Run the 100-Probe WebSocket Latency Audit
 node test-latency.js
+```
+
+---
+
+## ⚡ 2-Minute Quickstart: Copy & Paste to Run
+
+Run the complete **VelocityDB Engine** (Port 6379 & 8080) and **VelocityDB Studio Cockpit** (Port 3000) in under 2 minutes:
+
+### 1. Launch with Docker Compose (Recommended)
+```bash
+# Clone the repository
+git clone https://github.com/developer-yasir/velocitydb.git
+cd velocitydb
+
+# Launch Engine + Web Studio in background
+docker compose up -d
+
+# Verify Engine Health
+curl -s http://localhost:8080/api/health
+```
+
+### 2. Run the High-Performance Benchmark
+```bash
+# Blast 1,000,000 pipelined requests to verify local throughput
+sudo docker run --rm --network host redis:alpine redis-benchmark \
+  -h 127.0.0.1 -p 6379 -c 100 -n 1000000 -P 50 -t set,get -q
+```
+
+### 3. Connect with standard `redis-cli` or any Redis client
+```bash
+redis-cli -p 6379 PING
+# +PONG
+
+redis-cli -p 6379 SET welcome "VelocityDB Running"
+# +OK
+
+redis-cli -p 6379 GET welcome
+# "VelocityDB Running"
+```
+
+### 4. Open Studio Cockpit in your Browser
+```text
+http://localhost:3000
 ```
 
 ---
