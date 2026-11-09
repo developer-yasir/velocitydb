@@ -23,12 +23,12 @@ export default function MetricsPage() {
     telemetry?.cpu_cores && telemetry.cpu_cores.length > 0
       ? telemetry.cpu_cores.map((c) => ({
           id: c.core_id,
-          cpuUsage: Math.round(c.load_percent),
+          cpuUsage: Math.round(c.load_percent ?? c.cpu_percent ?? 50),
           rps: c.ops_sec,
           sqeDepth: c.sqe_depth,
-          cqePending: c.cqe_pending,
-          keysCount: c.keys_count,
-          isLeader: c.core_id === 0,
+          cqePending: c.cqe_pending ?? 0,
+          keysCount: c.keys_count ?? 0,
+          isLeader: c.is_leader ?? (c.core_id === 0),
         }))
       : Array.from({ length: 16 }, (_, i) => ({
           id: i,
