@@ -32,15 +32,11 @@
 <!-- Real Vector Preview Screenshot of VelocityDB Studio Cockpit -->
 <img src="assets/studio_dashboard_preview.svg" alt="VelocityDB Studio Dark-Mode Cockpit Dashboard" width="100%" />
 
-<br/>
+<br/><br/>
 
-<!-- Real Sped-Up Video Animation Banner of the Enterprise Terminal Benchmark -->
-<div align="center">
-  <a href="#-real-world-aws-ec2-production-benchmark-25-million-requests-blast">
-    <img src="assets/live_terminal_demo.gif" alt="VelocityDB Live AWS EC2 Benchmark - 25M Requests at 641,000 Peak RPS" width="100%" style="border-radius: 8px; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
-  </a>
-  <p><em>⚡ <b>Live AWS EC2 Benchmark:</b> 25,000,000 requests blasted at <b>641,000 Peak RPS</b> with <b>18.1 µs P99 latency</b> on Amazon Linux 2023.</em></p>
-</div>
+<a href="#-real-world-aws-ec2-production-benchmark-25-million-requests-blast">
+  <img src="https://img.shields.io/badge/🎬_Live_EC2_Benchmark-25M_Requests_@_641K_Peak_RPS-blueviolet?style=for-the-badge&logo=amazon-aws" alt="Watch Live EC2 Benchmark" />
+</a>
 
 </div>
 
@@ -147,39 +143,25 @@ Multi-threaded alternatives attempt to patch this by adding global mutex locks, 
 
 Use this pitch script when demonstrating VelocityDB to Engineering Executives, CTOs, and Cloud Architects:
 
-````carousel
-```markdown
-[Slide 1: 00:00 - 00:04]
-"The Multi-Core Cloud Tax: Why Redis Costs Millions"
-```
-**English:** "Modern cloud servers have 64 to 128 cores, but traditional Redis only uses one. That means 98% of your expensive CPU capacity is completely idle, forcing engineering teams to deploy costly, complex clusters. VelocityDB changes the game entirely."
-<br/>
-**Roman Urdu:** "Aaj kal ke modern AWS servers mein 64 se 128 cores hotay hain, lekin traditional Redis sirf 1 core use karta hai—yani 98% server resources zaya hotay hain aur companies ko bekar mein lakhon rupay cluster management par kharchnay partay hain. VelocityDB is problem ko jarr se khatam karta hai."
-<!-- slide -->
-```markdown
-[Slide 2: 00:04 - 00:08]
-"Blasting 25 Million Requests on AWS EC2"
-```
-**English:** "Here is real proof running live on AWS EC2 Amazon Linux 2023. We blast 25 million write requests across 150 concurrent client connections with 50-command pipelining. Watch the live Next.js Studio Cockpit instantly surge to over 641,000 requests per second."
-<br/>
-**Roman Urdu:** "Yeh real AWS EC2 production instance par live proof hai. Humne 150 concurrent connections aur 50-command pipelining ke sath 25 Million (Dhai Crore) requests fire keen. VelocityDB Studio Cockpit par aap live dekh saktay hain throughput 641,000 RPS (chhay lakh iktaalees hazar requests per second) par spike karti hai."
-<!-- slide -->
-```markdown
-[Slide 3: 00:08 - 00:11]
-"Under the Hood: Linux io_uring & Zero Mutex Locks"
-```
-**English:** "Underneath, VelocityDB pins independent asynchronous engines to each CPU core. Using Linux io_uring kernel bypass, network packets are consumed directly from ring buffers with zero syscalls and zero mutex contention. Even under a strict 2 Megabyte RAM limit, our O(1) LRU evicted over 43,000 keys seamlessly without dropping P99 latency below 18.1 microseconds."
-<br/>
-**Roman Urdu:** "Architecture ke andar, VelocityDB Linux io_uring kernel bypass use karta hai jo zero syscalls ke sath ring buffers se direct data process karta hai. Yahan zero mutex locks hain. 2 MB ki strict memory limit ke bawajood O(1) LRU ne 43,000 keys dynamically evict keen bina kisi pipeline pause ke, aur P99 tail latency sirf 18.1 microseconds par barkarar rahi."
-<!-- slide -->
-```markdown
-[Slide 4: 00:11 - 00:14]
-"The CTO Bottom Line: 80% Infrastructure Cost Reduction"
-```
-**English:** "For any CTO, the financial ROI is clear: VelocityDB lets you consolidate 10 to 20 Redis nodes into a single, high-density instance. You eliminate cluster overhead, slash your AWS ElastiCache bill by up to 80%, and deliver sub-20 microsecond response times at scale."
-<br/>
-**Roman Urdu:** "CTO aur engineering leadership ke liye sab se bara faida cost aur scalability ka hai: Jahan aapko 10 se 20 Redis servers ka cluster sambhalna parta tha, VelocityDB akele aik single machine par woh pura load handle karta hai. Is se AWS cloud bills 70% se 80% tak kam ho jatay hain aur latency microsecond level par rehti hai."
-````
+#### 🎬 Act 1: The Multi-Core Cloud Tax (00:00 - 00:04)
+> **🇺🇸 English:** "Modern cloud servers have 64 to 128 cores, but traditional Redis only uses one. That means 98% of your expensive CPU capacity is completely idle, forcing engineering teams to deploy costly, complex clusters. VelocityDB changes the game entirely."
+> 
+> **🇵🇰 Roman Urdu:** "Aaj kal ke modern AWS servers mein 64 se 128 cores hotay hain, lekin traditional Redis sirf 1 core use karta hai—yani 98% server resources zaya hotay hain aur companies ko bekar mein lakhon rupay cluster management par kharchnay partay hain. VelocityDB is problem ko jarr se khatam karta hai."
+
+#### 🎬 Act 2: Blasting 25 Million Requests on AWS EC2 (00:04 - 00:08)
+> **🇺🇸 English:** "Here is real proof running live on AWS EC2 Amazon Linux 2023. We blast 25 million write requests across 150 concurrent client connections with 50-command pipelining. Watch the live Next.js Studio Cockpit instantly surge to over 641,000 requests per second."
+> 
+> **🇵🇰 Roman Urdu:** "Yeh real AWS EC2 production instance par live proof hai. Humne 150 concurrent connections aur 50-command pipelining ke sath 25 Million (Dhai Crore) requests fire keen. VelocityDB Studio Cockpit par aap live dekh saktay hain throughput 641,000 RPS (chhay lakh iktaalees hazar requests per second) par spike karti hai."
+
+#### 🎬 Act 3: Inside the Kernel: io_uring & Zero Mutex Locks (00:08 - 00:11)
+> **🇺🇸 English:** "Underneath, VelocityDB pins independent asynchronous engines to each CPU core. Using Linux io_uring kernel bypass, network packets are consumed directly from ring buffers with zero syscalls and zero mutex contention. Even under a strict 2 Megabyte RAM limit, our O(1) LRU evicted over 43,000 keys seamlessly without dropping P99 latency below 18.1 microseconds."
+> 
+> **🇵🇰 Roman Urdu:** "Architecture ke andar, VelocityDB Linux io_uring kernel bypass use karta hai jo zero syscalls ke sath ring buffers se direct data process karta hai. Yahan zero mutex locks hain. 2 MB ki strict memory limit ke bawajood O(1) LRU ne 43,000 keys dynamically evict keen bina kisi pipeline pause ke, aur P99 tail latency sirf 18.1 microseconds par barkarar rahi."
+
+#### 🎬 Act 4: The CTO Bottom Line: 80% Infrastructure Cost Reduction (00:11 - 00:14)
+> **🇺🇸 English:** "For any CTO, the financial ROI is clear: VelocityDB lets you consolidate 10 to 20 Redis nodes into a single, high-density instance. You eliminate cluster overhead, slash your AWS ElastiCache bill by up to 80%, and deliver sub-20 microsecond response times at scale."
+> 
+> **🇵🇰 Roman Urdu:** "CTO aur engineering leadership ke liye sab se bara faida cost aur scalability ka hai: Jahan aapko 10 se 20 Redis servers ka cluster sambhalna parta tha, VelocityDB akele aik single machine par woh pura load handle karta hai. Is se AWS cloud bills 70% se 80% tak kam ho jatay hain aur latency microsecond level par rehti hai." 
 
 ---
 
