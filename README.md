@@ -202,6 +202,18 @@ velocitydb:6379> GET user:101
 
 ## 🚀 1-Click Production Deploy
 
+### ⚡ Instant 1-Line Run (Pre-Built Container — Zero Compilation):
+
+You don't even need to clone the repository or compile from source. Pull and launch the pre-built, ultra-fast container in **5 seconds**:
+
+```bash
+docker run -d --name velocitydb --restart unless-stopped --privileged \
+  -p 6379:6379 -p 8080:8080 \
+  ghcr.io/developer-yasir/velocitydb:latest
+```
+
+### 🐳 Full Stack Deployment (Engine + Studio GUI) via Docker Compose:
+
 Deploy both the **VelocityDB Core Engine** and **VelocityDB Studio** instantly using Docker Compose:
 
 ```bash

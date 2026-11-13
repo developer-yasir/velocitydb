@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Yasir Saleem <engyasirsaleem@gmail.com>"]
 description = "A bleeding-edge, thread-per-core Redis alternative in Rust powered by io_uring"
 license = "AGPL-3.0-only"
+repository = "https://github.com/developer-yasir/velocitydb"
 
 [dependencies]
 # SIMD-accelerated byte searching for RESP protocol parsing

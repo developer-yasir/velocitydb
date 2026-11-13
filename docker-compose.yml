@@ -9,6 +9,7 @@ services:
   # 1. High-Performance Core Engine (Rust + io_uring)
   # ============================================================================
   velocitydb-engine:
+    image: ghcr.io/developer-yasir/velocitydb:latest
     build:
       context: .
       dockerfile: Dockerfile

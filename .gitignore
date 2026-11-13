@@ -33,3 +33,4 @@ yarn-debug.log*
 .env
 .env*.local
 *.secret
+*.mp4

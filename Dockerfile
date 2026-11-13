@@ -18,6 +18,9 @@ COPY tests ./tests
 # Build optimized production binary
 RUN cargo build --release --bin velocitydb
 
+# Strip debug symbols to reduce binary size
+RUN strip /usr/src/velocitydb/target/release/velocitydb
+
 # Runtime Stage
 FROM debian:bookworm-slim
 
