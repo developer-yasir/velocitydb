@@ -1591,6 +1591,9 @@ mod linux {
         let mut conn_acl = acl_engine.new_connection_state();
         let mut txn_state = TransactionState::new();
 
+        // Disable Nagle's algorithm immediately to avoid 200ms Delayed ACK stall
+        let _ = raw_stream.set_nodelay(true);
+
         let mut stream = match tls_config {
             Some(tls_cfg) => {
                 let server_conn = ServerConnection::new(tls_cfg)
@@ -1802,6 +1805,7 @@ mod linux {
         loop {
             match listener.accept().await {
                 Ok(stream) => {
+                    let _ = stream.set_nodelay(true);
                     let local_cache = cache.clone();
                     let local_hub = hub.clone();
                     let local_aof = aof.clone();
