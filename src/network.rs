@@ -637,6 +637,7 @@ pub async fn execute_command_internal<W: AsyncWriteExt + Unpin>(
     } else if cmd.eq_ignore_ascii_case(b"ROLE")
         || cmd.eq_ignore_ascii_case(b"INFO")
         || cmd.eq_ignore_ascii_case(b"COMMAND")
+        || cmd.eq_ignore_ascii_case(b"CONFIG")
     {
         acl::CAT_CONNECTION
     } else {
@@ -646,6 +647,21 @@ pub async fn execute_command_internal<W: AsyncWriteExt + Unpin>(
     // Zero-allocation O(1) permission check (~0.5ns)
     if let Err(err_bytes) = conn_acl.check(required_cat) {
         batch_writer.write_slice(err_bytes).await?;
+        return Ok(());
+    }
+
+    if cmd.eq_ignore_ascii_case(b"CONFIG") {
+        let sub = args.next();
+        if let Some(sub_cmd) = sub {
+            if sub_cmd.eq_ignore_ascii_case(b"GET") {
+                batch_writer.write_slice(b"*0\r\n").await?;
+                return Ok(());
+            } else if sub_cmd.eq_ignore_ascii_case(b"SET") || sub_cmd.eq_ignore_ascii_case(b"RESETSTAT") {
+                batch_writer.write_slice(RESP_OK).await?;
+                return Ok(());
+            }
+        }
+        batch_writer.write_slice(b"*0\r\n").await?;
         return Ok(());
     }
 

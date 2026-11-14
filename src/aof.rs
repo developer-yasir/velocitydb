@@ -724,8 +724,8 @@ mod linux {
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
                 }
             } else {
-                // Yield cooperatively to client connection tasks when queue is idle
-                glommio::yield_if_needed().await;
+                // Sleep cooperatively when idle instead of spinning 100% CPU
+                glommio::timer::Timer::new(std::time::Duration::from_millis(5)).await;
             }
         }
     }
