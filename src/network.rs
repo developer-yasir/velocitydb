@@ -1591,8 +1591,29 @@ mod linux {
         let mut conn_acl = acl_engine.new_connection_state();
         let mut txn_state = TransactionState::new();
 
-        // Disable Nagle's algorithm immediately to avoid 200ms Delayed ACK stall
-        let _ = raw_stream.set_nodelay(true);
+        let raw_fd = {
+            use std::os::unix::io::AsRawFd;
+            raw_stream.as_raw_fd()
+        };
+
+        // Disable Nagle's algorithm and enable TCP_QUICKACK to permanently eliminate 200ms Delayed ACK stall
+        unsafe {
+            let opt: libc::c_int = 1;
+            libc::setsockopt(
+                raw_fd,
+                libc::IPPROTO_TCP,
+                libc::TCP_NODELAY,
+                &opt as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&opt) as libc::socklen_t,
+            );
+            libc::setsockopt(
+                raw_fd,
+                libc::IPPROTO_TCP,
+                libc::TCP_QUICKACK,
+                &opt as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&opt) as libc::socklen_t,
+            );
+        }
 
         let mut stream = match tls_config {
             Some(tls_cfg) => {
@@ -1681,6 +1702,18 @@ mod linux {
             }
 
             read_pos += n;
+
+            // Re-arm TCP_QUICKACK on each incoming read (Linux resets quickack after sending an ACK)
+            unsafe {
+                let opt: libc::c_int = 1;
+                libc::setsockopt(
+                    raw_fd,
+                    libc::IPPROTO_TCP,
+                    libc::TCP_QUICKACK,
+                    &opt as *const _ as *const libc::c_void,
+                    std::mem::size_of_val(&opt) as libc::socklen_t,
+                );
+            }
             let mut batch_writer = BatchWriter::new(&mut stream);
             let mut pipeline = parser::parse_pipeline(&buf[..read_pos]);
             let mut commands_in_batch = 0;
@@ -1805,7 +1838,27 @@ mod linux {
         loop {
             match listener.accept().await {
                 Ok(stream) => {
-                    let _ = stream.set_nodelay(true);
+                    {
+                        use std::os::unix::io::AsRawFd;
+                        let fd = stream.as_raw_fd();
+                        unsafe {
+                            let opt: libc::c_int = 1;
+                            libc::setsockopt(
+                                fd,
+                                libc::IPPROTO_TCP,
+                                libc::TCP_NODELAY,
+                                &opt as *const _ as *const libc::c_void,
+                                std::mem::size_of_val(&opt) as libc::socklen_t,
+                            );
+                            libc::setsockopt(
+                                fd,
+                                libc::IPPROTO_TCP,
+                                libc::TCP_QUICKACK,
+                                &opt as *const _ as *const libc::c_void,
+                                std::mem::size_of_val(&opt) as libc::socklen_t,
+                            );
+                        }
+                    }
                     let local_cache = cache.clone();
                     let local_hub = hub.clone();
                     let local_aof = aof.clone();
